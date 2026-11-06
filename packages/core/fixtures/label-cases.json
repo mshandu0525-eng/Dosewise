@@ -1,0 +1,579 @@
+[
+ {
+  "id": "metformin-clean",
+  "med": {
+   "name": "Metformin",
+   "dosage": "500 mg"
+  },
+  "seen": {
+   "text": [
+    "Metformin 500 mg",
+    "60 film-coated tablets",
+    "Each tablet contains metformin hydrochloride 500 mg",
+    "S3"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "metformin-nospace",
+  "med": {
+   "name": "Metformin",
+   "dosage": "500 mg"
+  },
+  "seen": {
+   "text": [
+    "METFORMIN 500MG",
+    "TABLETS"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "metformin-ocr-O",
+  "med": {
+   "name": "Metformin",
+   "dosage": "500 mg"
+  },
+  "seen": {
+   "text": [
+    "Metformin 5OO mg",
+    "Tablets"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "metformin-brand",
+  "med": {
+   "name": "Metformin",
+   "dosage": "500 mg"
+  },
+  "seen": {
+   "text": [
+    "Glucophage",
+    "metformin hydrochloride",
+    "500 mg film-coated tablets"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "metformin-typo",
+  "med": {
+   "name": "Metformin",
+   "dosage": "500 mg"
+  },
+  "seen": {
+   "text": [
+    "Metfornin 500 mg",
+    "56 tablets"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "amlodipine-5",
+  "med": {
+   "name": "Amlodipine",
+   "dosage": "5 mg"
+  },
+  "seen": {
+   "text": [
+    "Amlodipine 5 mg",
+    "30 tablets",
+    "Reg. No. 41/7.1/0123"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "amlodipine-ocr-S",
+  "med": {
+   "name": "Amlodipine",
+   "dosage": "5 mg"
+  },
+  "seen": {
+   "text": [
+    "AMLODIPINE",
+    "5 mg tablets",
+    "Keep out of reach of children"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "hctz-comma",
+  "med": {
+   "name": "Hydrochlorothiazide",
+   "dosage": "12.5 mg"
+  },
+  "seen": {
+   "text": [
+    "Hydrochlorothiazide 12,5 mg",
+    "28 tablets"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "enalapril-10",
+  "med": {
+   "name": "Enalapril",
+   "dosage": "10 mg"
+  },
+  "seen": {
+   "text": [
+    "Enalapril maleate",
+    "10 mg",
+    "30 tablets"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "losartan-combo",
+  "med": {
+   "name": "Losartan HCT",
+   "dosage": "50/12.5 mg"
+  },
+  "seen": {
+   "text": [
+    "Losartan HCT 50 mg/12,5 mg",
+    "film-coated tablets"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "losartan-combo-short",
+  "med": {
+   "name": "Losartan HCT",
+   "dosage": "50/12.5 mg"
+  },
+  "seen": {
+   "text": [
+    "LOSARTAN HCT",
+    "50/12.5 mg"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "levothyroxine-mcg",
+  "med": {
+   "name": "Levothyroxine",
+   "dosage": "100 mcg"
+  },
+  "seen": {
+   "text": [
+    "Levothyroxine sodium",
+    "100 micrograms",
+    "tablets"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "levothyroxine-ug",
+  "med": {
+   "name": "Levothyroxine",
+   "dosage": "0.1 mg"
+  },
+  "seen": {
+   "text": [
+    "Levothyroxine 100 \u00b5g"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "simvastatin-20",
+  "med": {
+   "name": "Simvastatin",
+   "dosage": "20 mg"
+  },
+  "seen": {
+   "text": [
+    "Simvastatin 20 mg",
+    "Film-coated tablets",
+    "Store below 25 \u00b0C"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "atorvastatin-40",
+  "med": {
+   "name": "Atorvastatin",
+   "dosage": "40 mg"
+  },
+  "seen": {
+   "text": [
+    "atorvastatin",
+    "40mg",
+    "30 film coated tablets"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "paracetamol-syrup",
+  "med": {
+   "name": "Paracetamol syrup",
+   "dosage": "120 mg/5 ml"
+  },
+  "seen": {
+   "text": [
+    "Paracetamol",
+    "120 mg/5 ml",
+    "oral suspension",
+    "100 ml"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "insulin-iu",
+  "med": {
+   "name": "Insulin glargine",
+   "dosage": "100 IU/ml"
+  },
+  "seen": {
+   "text": [
+    "Insulin glargine",
+    "100 units/ml",
+    "3 ml cartridge"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "warfarin-5",
+  "med": {
+   "name": "Warfarin",
+   "dosage": "5 mg"
+  },
+  "seen": {
+   "text": [
+    "Warfarin",
+    "5 mg",
+    "28 tablets",
+    "Batch 23A41 Exp 03/2027"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "aspirin-81",
+  "med": {
+   "name": "Aspirin",
+   "dosage": "81 mg"
+  },
+  "seen": {
+   "text": [
+    "Aspirin 81 mg",
+    "enteric coated"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "metformin-1g",
+  "med": {
+   "name": "Metformin",
+   "dosage": "1000 mg"
+  },
+  "seen": {
+   "text": [
+    "Metformin 1 g",
+    "tablets"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "metformin-thousands",
+  "med": {
+   "name": "Metformin",
+   "dosage": "1000 mg"
+  },
+  "seen": {
+   "text": [
+    "Metformin 1,000 mg"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "barcode-same-box",
+  "med": {
+   "name": "Carvedilol",
+   "dosage": "6.25 mg"
+  },
+  "seen": {
+   "text": [
+    "Carvedi1ol 6.2 mg"
+   ],
+   "barcode": "6001234567890"
+  },
+  "expected": "match",
+  "reference": {
+   "barcode": "6001234567890"
+  }
+ },
+ {
+  "id": "dose-is-tablet-ref",
+  "med": {
+   "name": "Prednisone",
+   "dosage": "1 tablet"
+  },
+  "seen": {
+   "text": [
+    "Prednisone 5 mg",
+    "tablets"
+   ]
+  },
+  "expected": "match",
+  "reference": {
+   "strengths": [
+    "5mg"
+   ]
+  }
+ },
+ {
+  "id": "furosemide-40",
+  "med": {
+   "name": "Furosemide",
+   "dosage": "40 mg"
+  },
+  "seen": {
+   "text": [
+    "FUROSEMIDE 40 mg",
+    "28 TABLETS",
+    "S4"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "omeprazole-20",
+  "med": {
+   "name": "Omeprazole",
+   "dosage": "20 mg"
+  },
+  "seen": {
+   "text": [
+    "Omeprazole",
+    "20 mg",
+    "gastro-resistant capsules"
+   ]
+  },
+  "expected": "match"
+ },
+ {
+  "id": "metformin-850",
+  "med": {
+   "name": "Metformin",
+   "dosage": "500 mg"
+  },
+  "seen": {
+   "text": [
+    "Metformin 850 mg",
+    "60 tablets"
+   ]
+  },
+  "expected": "different-strength"
+ },
+ {
+  "id": "metformin-1000",
+  "med": {
+   "name": "Metformin",
+   "dosage": "500 mg"
+  },
+  "seen": {
+   "text": [
+    "Metformin 1000 mg"
+   ]
+  },
+  "expected": "different-strength"
+ },
+ {
+  "id": "amlodipine-10",
+  "med": {
+   "name": "Amlodipine",
+   "dosage": "5 mg"
+  },
+  "seen": {
+   "text": [
+    "Amlodipine 10 mg",
+    "30 tablets"
+   ]
+  },
+  "expected": "different-strength"
+ },
+ {
+  "id": "hctz-25",
+  "med": {
+   "name": "Hydrochlorothiazide",
+   "dosage": "12.5 mg"
+  },
+  "seen": {
+   "text": [
+    "Hydrochlorothiazide 25 mg"
+   ]
+  },
+  "expected": "different-strength"
+ },
+ {
+  "id": "enalapril-20",
+  "med": {
+   "name": "Enalapril",
+   "dosage": "10 mg"
+  },
+  "seen": {
+   "text": [
+    "Enalapril maleate 20 mg"
+   ]
+  },
+  "expected": "different-strength"
+ },
+ {
+  "id": "losartan-100",
+  "med": {
+   "name": "Losartan HCT",
+   "dosage": "50/12.5 mg"
+  },
+  "seen": {
+   "text": [
+    "Losartan HCT 100 mg/25 mg"
+   ]
+  },
+  "expected": "different-strength"
+ },
+ {
+  "id": "levo-50",
+  "med": {
+   "name": "Levothyroxine",
+   "dosage": "100 mcg"
+  },
+  "seen": {
+   "text": [
+    "Levothyroxine 50 micrograms"
+   ]
+  },
+  "expected": "different-strength"
+ },
+ {
+  "id": "simva-40",
+  "med": {
+   "name": "Simvastatin",
+   "dosage": "20 mg"
+  },
+  "seen": {
+   "text": [
+    "Simvastatin 40 mg"
+   ]
+  },
+  "expected": "different-strength"
+ },
+ {
+  "id": "warfarin-1",
+  "med": {
+   "name": "Warfarin",
+   "dosage": "5 mg"
+  },
+  "seen": {
+   "text": [
+    "Warfarin 1 mg",
+    "28 tablets"
+   ]
+  },
+  "expected": "different-strength"
+ },
+ {
+  "id": "warfarin-ocr-l",
+  "med": {
+   "name": "Warfarin",
+   "dosage": "5 mg"
+  },
+  "seen": {
+   "text": [
+    "Warfarin l mg",
+    "28 tablets"
+   ]
+  },
+  "expected": "different-strength"
+ },
+ {
+  "id": "paracetamol-250",
+  "med": {
+   "name": "Paracetamol syrup",
+   "dosage": "120 mg/5 ml"
+  },
+  "seen": {
+   "text": [
+    "Paracetamol 250 mg/5 ml",
+    "oral suspension"
+   ]
+  },
+  "expected": "different-strength"
+ },
+ {
+  "id": "atorva-80",
+  "med": {
+   "name": "Atorvastatin",
+   "dosage": "40 mg"
+  },
+  "seen": {
+   "text": [
+    "atorvastatin 80mg"
+   ]
+  },
+  "expected": "different-strength"
+ },
+ {
+  "id": "metformin-0.85g",
+  "med": {
+   "name": "Metformin",
+   "dosage": "500 mg"
+  },
+  "seen": {
+   "text": [
+    "Metformin 0,85 g"
+   ]
+  },
+  "expected": "different-strength"
+ },
+ {
+  "id": "pred-20-ref",
+  "med": {
+   "name": "Prednisone",
+   "dosage": "1 tablet"
+  },
+  "seen": {
+   "text": [
+    "Prednisone 20 mg"
+   ]
+  },
+  "expected": "different-strength",
+  "reference": {
+   "strengths": [
+    "5mg"
+   ]
+  }
+ },
+ {
+  "id": "furosemide-500",
+  "med": {
+   "name": "Furosemide",
+   "dosage": "40 mg"
+  },
+  "seen": {
+   "text": [
+    "FUROSEMIDE 500 mg"
+   ]
+  },
+  "expected": "different-strength"
+ }
+]
