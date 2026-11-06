@@ -169,3 +169,7 @@ Before public release, follow the go/no-go gates in the launch pack. In short: d
 - Guardian consent for patients under 18 (the app is 18+ at launch)
 - Dark high-contrast theme
 - Translations
+
+## License
+
+MIT. See [LICENSE](LICENSE).

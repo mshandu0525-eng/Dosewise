@@ -1,6 +1,7 @@
 {
   "name": "dosewise",
   "private": true,
+  "license": "MIT",
   "workspaces": [
     "apps/mobile",
     "packages/*",
