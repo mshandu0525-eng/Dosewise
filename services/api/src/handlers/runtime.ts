@@ -4,10 +4,12 @@
  */
 import { randomUUID } from "node:crypto";
 import { KMSClient } from "@aws-sdk/client-kms";
+import { RDSDataClient } from "@aws-sdk/client-rds-data";
 import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { SNSClient } from "@aws-sdk/client-sns";
 import pg from "pg";
 import { KmsFieldCipher } from "../lib/cipher";
+import { DataApiDb } from "../lib/dataApiDb";
 import { DEFAULT_CONFIG, type Db, type Deps } from "../domain/deps";
 import { SnsSmsSender, WhatsAppCloudMessenger } from "../whatsapp/messenger";
 import { OutboxMessenger, OutboxSms } from "../whatsapp/outbox";
@@ -30,7 +32,20 @@ export function secret(arn: string): Promise<Record<string, string>> {
 }
 
 let pool: pg.Pool | undefined;
+let dataApi: DataApiDb | undefined;
+
+/** "lite" staging: the Data API over HTTPS (no VPC). Otherwise a pg connection inside the VPC. */
+export const usesDataApi = () => process.env.DB_MODE === "data-api";
+
 async function db(): Promise<Db> {
+  if (usesDataApi()) {
+    dataApi ??= new DataApiDb(new RDSDataClient({}), {
+      resourceArn: env("DB_CLUSTER_ARN"),
+      secretArn: env("DB_SECRET_ARN"),
+      database: process.env.DB_NAME ?? "dosewise",
+    });
+    return dataApi;
+  }
   if (!pool) {
     const s = await secret(env("DB_SECRET_ARN"));
     pool = new pg.Pool({

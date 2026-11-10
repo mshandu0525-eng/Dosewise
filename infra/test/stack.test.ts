@@ -128,3 +128,54 @@ describe("test messaging mode", () => {
     expect(fns.filter((f) => f.Environment?.Variables?.DB_SECRET_ARN).every((f) => f.Environment.Variables.MESSAGING_MODE === "live")).toBe(true);
   });
 });
+
+describe("lite network setup (near-free staging)", () => {
+  const make = (stage: "prod" | "staging", network: "vpc" | "lite") =>
+    new DoseWiseStack(new App({ context: { "aws:cdk:bundling-stacks": [] } }), `N${stage}${network}`, {
+      stage,
+      network,
+      messagingMode: stage === "prod" ? "live" : "test",
+      env: { account: "111111111111", region: "af-south-1" },
+      whatsappPhoneNumberId: "1",
+    });
+
+  it("is refused on the production stack", () => {
+    expect(() => make("prod", "lite")).toThrow(/staging only/);
+  });
+
+  it("has nothing that bills by the hour: no NAT gateway, no VPC endpoints, functions outside the VPC", () => {
+    const s = Template.fromStack(make("staging", "lite"));
+    s.resourceCountIs("AWS::EC2::NatGateway", 0);
+    s.resourceCountIs("AWS::EC2::VPCEndpoint", 0);
+    s.resourceCountIs("AWS::EC2::EIP", 0);
+    const fns = Object.values(s.findResources("AWS::Lambda::Function")).map((f) => (f as { Properties: Record<string, any> }).Properties);
+    const ours = fns.filter((f) => f.Environment?.Variables?.DB_SECRET_ARN);
+    expect(ours).toHaveLength(7);
+    for (const f of ours) {
+      expect(f.VpcConfig).toBeUndefined();
+      expect(f.Environment.Variables.DB_MODE).toBe("data-api");
+      expect(f.Environment.Variables.DB_CLUSTER_ARN).toBeDefined();
+    }
+  });
+
+  it("keeps the database private and encrypted, reachable only through the Data API, pausing when idle", () => {
+    const s = Template.fromStack(make("staging", "lite"));
+    s.hasResourceProperties("AWS::RDS::DBCluster", {
+      EnableHttpEndpoint: true,
+      StorageEncrypted: true,
+      ServerlessV2ScalingConfiguration: Match.objectLike({ MinCapacity: 0 }),
+    });
+    s.hasResourceProperties("AWS::RDS::DBInstance", { PubliclyAccessible: false });
+    s.resourceCountIs("AWS::EC2::SecurityGroupIngress", 0);
+    // Functions may call the Data API on this cluster only.
+    const policies = JSON.stringify(s.findResources("AWS::IAM::Policy"));
+    expect(policies).toContain("rds-data:ExecuteStatement");
+  });
+
+  it("the default vpc setup is unchanged", () => {
+    const s = Template.fromStack(make("staging", "vpc"));
+    s.resourceCountIs("AWS::EC2::NatGateway", 1);
+    s.resourceCountIs("AWS::EC2::VPCEndpoint", 3);
+    s.hasResourceProperties("AWS::RDS::DBCluster", { EnableHttpEndpoint: Match.absent() });
+  });
+});

@@ -13,6 +13,11 @@ on:
         type: choice
         options: [test, live]
         default: test
+      network:
+        description: "lite = near-free (Data API, no NAT gateway or VPC endpoints); vpc = same network as production"
+        type: choice
+        options: [lite, vpc]
+        default: lite
 
 permissions:
   id-token: write # OIDC sign-in to AWS, no stored AWS keys
@@ -54,6 +59,7 @@ jobs:
           npx cdk deploy DoseWise-staging
           -c stage=staging
           -c messagingMode=${{ inputs.messaging_mode }}
+          -c network=${{ inputs.network }}
           -c whatsappPhoneNumberId=${{ vars.WHATSAPP_PHONE_NUMBER_ID || 'SET_ME' }}
           --require-approval never
           --outputs-file cdk-outputs.json
@@ -69,6 +75,7 @@ jobs:
               "",
               "| Setting | Value |", "| --- | --- |",
               `| Messaging mode | ${o.MessagingMode} |`,
+              `| Network | ${o.Network} |`,
               `| EXPO_PUBLIC_API_URL | ${o.ApiUrl} |`,
               `| EXPO_PUBLIC_COGNITO_CLIENT_ID | ${o.UserPoolClientId} |`,
               `| User pool | ${o.UserPoolId} |`,

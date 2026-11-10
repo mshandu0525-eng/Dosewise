@@ -11,6 +11,8 @@ new DoseWiseStack(app, `DoseWise-${stage}`, {
   whatsappPhoneNumberId: (app.node.tryGetContext("whatsappPhoneNumberId") as string | undefined) ?? "SET_ME",
   // Staging defaults to the test outbox until the WhatsApp templates are approved.
   messagingMode: (app.node.tryGetContext("messagingMode") as "live" | "test" | undefined) ?? (stage === "prod" ? "live" : "test"),
+  // Staging defaults to the near-free lite setup (no NAT gateway or VPC endpoints).
+  network: (app.node.tryGetContext("network") as "vpc" | "lite" | undefined) ?? (stage === "prod" ? "vpc" : "lite"),
   smsSenderId: app.node.tryGetContext("smsSenderId") as string | undefined,
   tags: { app: "dosewise", stage, "data-classification": "health" },
 });

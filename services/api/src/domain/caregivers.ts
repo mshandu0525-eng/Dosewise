@@ -37,7 +37,7 @@ export async function recordConsent(
   c: { patientId: string; caregiverId?: string; kind: string; actor: "patient" | "caregiver" | "system"; details?: Record<string, unknown> },
 ) {
   await deps.db.query(
-    "INSERT INTO consents (patient_id, caregiver_id, kind, actor, notice_version, details, at) VALUES ($1,$2,$3,$4,$5,$6,$7)",
+    "INSERT INTO consents (patient_id, caregiver_id, kind, actor, notice_version, details, at) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7)",
     [c.patientId, c.caregiverId ?? null, c.kind, c.actor, deps.config.noticeVersion, JSON.stringify(c.details ?? {}), deps.now()],
   );
 }

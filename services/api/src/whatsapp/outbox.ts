@@ -20,7 +20,7 @@ async function write(
 ): Promise<SendResult> {
   const id = `test.${newId()}`;
   await db.query(
-    "INSERT INTO test_outbox (id, channel, to_index, to_enc, template, text, buttons, sent_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+    "INSERT INTO test_outbox (id, channel, to_index, to_enc, template, text, buttons, sent_at) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8)",
     [id, m.channel, await cipher.index(m.to), await cipher.encrypt(m.to), m.template ?? null, m.text, JSON.stringify(m.buttons ?? []), new Date()],
   );
   return { ok: true, id };

@@ -180,7 +180,17 @@ Deploys run from GitHub Actions (**Actions → Deploy staging → Run workflow**
 5. **Run the deploy.** Actions → **Deploy staging** → Run workflow (messaging mode `test`). The run summary lists `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_COGNITO_CLIENT_ID`. Put both into the `preview` profile in `apps/mobile/eas.json` and build a preview app.
 6. **Allow sign-in codes.** Cognito sends them by SMS through Amazon SNS, and new AWS accounts are in the SNS *SMS sandbox*. In SNS (af-south-1) → Text messaging, add each tester's number as a verified destination, and raise the monthly SMS spend limit from its USD 1 default.
 
-**Cost and clean-up:** staging costs roughly USD 35–45 a month while deployed, mostly the network gateway; the database pauses when idle. To remove it, delete the `DoseWise-staging` stack in CloudFormation, or run `npx cdk destroy DoseWise-staging -c stage=staging` in `infra/`.
+**Cost: the free option.** Staging deploys in the **lite** network setup by default. It reaches the database through the Aurora Data API over HTTPS, so it needs no NAT gateway and no private links to AWS services, which are what bill around the clock. The database is still private and encrypted, and it pauses when nobody is using it.
+
+| Setup | What bills all the time | Rough cost |
+| --- | --- | --- |
+| `lite` (staging default) | 3 encryption keys, 2 stored secrets, a little database storage | about USD 4–6 a month, plus a few US cents per hour of active testing and about USD 0.02 per sign-in SMS |
+| `vpc` (same as production) | the above, plus a NAT gateway and 3 private service links in 2 zones | about USD 75–95 a month |
+
+- **Free credits:** a **new AWS account** gets up to USD 200 in credits on AWS's free plan for up to 6 months: USD 100 at sign-up and up to USD 100 more for trying certain services. That covers lite staging for the whole period.
+- **If the free plan blocks a service:** AWS says some services aren't available on it. If one DoseWise needs is blocked, upgrade to the paid plan; the credits still apply.
+- **Prices:** these are estimates. Check the AWS pricing pages for af-south-1.
+- **Clean-up:** delete the `DoseWise-staging` stack in CloudFormation, or run `npx cdk destroy DoseWise-staging -c stage=staging` in `infra/`.
 
 **After Meta approves the templates:** fill in the WhatsApp secret, set the repository variable `WHATSAPP_PHONE_NUMBER_ID`, and run the workflow with messaging mode `live`.
 
