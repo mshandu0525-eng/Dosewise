@@ -159,6 +159,41 @@ Sentry adds about 2 MB to the JS bundle.
 
 Before public release, follow the go/no-go gates in the launch pack. In short: deploy the backend, get the WhatsApp templates approved, complete the legal sign-offs and publish the privacy and deletion pages, then run the 50-person closed beta and meet its targets.
 
+## Deploy a test backend (before the WhatsApp templates are approved)
+
+Staging runs in **test messaging mode**. Nothing goes out by WhatsApp or SMS: each message is written to a test outbox instead.
+
+- In beta builds, the Family screen shows a **Test messages** section. It lists what each family member would have received and lets you tap their buttons or reply STOP as them, so the whole flow can be tested: invite, consent, missed-dose alert, daily summary, STOP.
+- The production stack refuses test mode, and the test routes (`/v1/test/*`) exist only on staging, behind sign-in.
+
+Deploys run from GitHub Actions (**Actions → Deploy staging → Run workflow**). GitHub signs in to AWS with OIDC, so no AWS keys are stored anywhere.
+
+**One-time setup**, with an AWS account admin:
+
+1. **Turn on the Cape Town region.** In the AWS console, open your account settings → AWS Regions → enable **Africa (Cape Town) af-south-1**. It's off by default and takes a few minutes.
+2. **Bootstrap CDK** in that region, once. AWS CloudShell works:
+   ```bash
+   npx -y aws-cdk@2 bootstrap aws://YOUR_ACCOUNT_ID/af-south-1
+   ```
+3. **Create the deploy role.** In CloudFormation (region af-south-1), choose Create stack → Upload `infra/bootstrap/github-deploy-role.yaml`, then copy the `RoleArn` output. The role works only for this repository's `staging` environment and can only use the CDK deploy roles.
+4. **Add the secret on GitHub.** In the repository, Settings → Environments → New environment `staging` → add the secret `AWS_DEPLOY_ROLE_ARN` with that ARN. Adding yourself as a required reviewer makes every deploy wait for your approval.
+5. **Run the deploy.** Actions → **Deploy staging** → Run workflow (messaging mode `test`). The run summary lists `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_COGNITO_CLIENT_ID`. Put both into the `preview` profile in `apps/mobile/eas.json` and build a preview app.
+6. **Allow sign-in codes.** Cognito sends them by SMS through Amazon SNS, and new AWS accounts are in the SNS *SMS sandbox*. In SNS (af-south-1) → Text messaging, add each tester's number as a verified destination, and raise the monthly SMS spend limit from its USD 1 default.
+
+**Cost: the free option.** Staging deploys in the **lite** network setup by default. It reaches the database through the Aurora Data API over HTTPS, so it needs no NAT gateway and no private links to AWS services, which are what bill around the clock. The database is still private and encrypted, and it pauses when nobody is using it.
+
+| Setup | What bills all the time | Rough cost |
+| --- | --- | --- |
+| `lite` (staging default) | 3 encryption keys, 2 stored secrets, a little database storage | about USD 4–6 a month, plus a few US cents per hour of active testing and about USD 0.02 per sign-in SMS |
+| `vpc` (same as production) | the above, plus a NAT gateway and 3 private service links in 2 zones | about USD 75–95 a month |
+
+- **Free credits:** a **new AWS account** gets up to USD 200 in credits on AWS's free plan for up to 6 months: USD 100 at sign-up and up to USD 100 more for trying certain services. That covers lite staging for the whole period.
+- **If the free plan blocks a service:** AWS says some services aren't available on it. If one DoseWise needs is blocked, upgrade to the paid plan; the credits still apply.
+- **Prices:** these are estimates. Check the AWS pricing pages for af-south-1.
+- **Clean-up:** delete the `DoseWise-staging` stack in CloudFormation, or run `npx cdk destroy DoseWise-staging -c stage=staging` in `infra/`.
+
+**After Meta approves the templates:** fill in the WhatsApp secret, set the repository variable `WHATSAPP_PHONE_NUMBER_ID`, and run the workflow with messaging mode `live`.
+
 ## Not yet built (next phases)
 
 - iOS AlarmKit full-screen alarms (needs a native Expo module)

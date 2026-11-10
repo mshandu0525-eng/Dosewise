@@ -10,10 +10,11 @@
     "templates": "tsx scripts/print-templates.ts"
   },
   "dependencies": {
-    "@dosewise/core": "*",
     "@aws-sdk/client-kms": "^3.1163.0",
+    "@aws-sdk/client-rds-data": "^3.1165.0",
     "@aws-sdk/client-secrets-manager": "^3.1163.0",
     "@aws-sdk/client-sns": "^3.1163.0",
+    "@dosewise/core": "*",
     "pg": "^8.23.1"
   },
   "devDependencies": {

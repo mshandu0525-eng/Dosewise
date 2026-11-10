@@ -61,6 +61,7 @@ describe("access", () => {
     const open = routes.filter((r) => r.AuthorizationType !== "JWT").map((r) => r.RouteKey).sort();
     expect(open).toEqual(["GET /whatsapp/webhook", "POST /whatsapp/webhook"]);
     expect(routes.filter((r) => r.AuthorizationType === "JWT")).toHaveLength(8);
+    expect(routes.some((r) => r.RouteKey.includes("/v1/test/"))).toBe(false);
   });
 
   it("signs people in with SMS codes on the Essentials plan", () => {
@@ -93,5 +94,88 @@ describe("jobs", () => {
 
   it("alarms when the sweep, webhook or API fail", () => {
     t.resourceCountIs("AWS::CloudWatch::Alarm", 3);
+  });
+});
+
+describe("test messaging mode", () => {
+  const stack = (stage: "prod" | "staging", messagingMode: "live" | "test") =>
+    new DoseWiseStack(new App({ context: { "aws:cdk:bundling-stacks": [] } }), `M${stage}${messagingMode}`, {
+      stage,
+      messagingMode,
+      env: { account: "111111111111", region: "af-south-1" },
+      whatsappPhoneNumberId: "1",
+    });
+
+  it("is refused on the production stack", () => {
+    expect(() => stack("prod", "test")).toThrow(/not allowed on the production stack/);
+  });
+
+  it("on staging, adds the test routes behind the Cognito authoriser and sets every function to test mode", () => {
+    const s = Template.fromStack(stack("staging", "test"));
+    const routes = Object.values(s.findResources("AWS::ApiGatewayV2::Route")).map(
+      (r) => (r as { Properties: { RouteKey: string; AuthorizationType?: string } }).Properties,
+    );
+    const testRoutes = routes.filter((r) => r.RouteKey.includes("/v1/test/"));
+    expect(testRoutes.map((r) => r.RouteKey).sort()).toEqual(["GET /v1/test/outbox", "POST /v1/test/reply", "POST /v1/test/sweep"]);
+    expect(testRoutes.every((r) => r.AuthorizationType === "JWT")).toBe(true);
+    const fns = Object.values(s.findResources("AWS::Lambda::Function")).map((f) => (f as { Properties: Record<string, any> }).Properties);
+    const ours = fns.filter((f) => f.Environment?.Variables?.DB_SECRET_ARN);
+    expect(ours.every((f) => f.Environment.Variables.MESSAGING_MODE === "test")).toBe(true);
+  });
+
+  it("production functions run live", () => {
+    const fns = Object.values(t.findResources("AWS::Lambda::Function")).map((f) => (f as { Properties: Record<string, any> }).Properties);
+    expect(fns.filter((f) => f.Environment?.Variables?.DB_SECRET_ARN).every((f) => f.Environment.Variables.MESSAGING_MODE === "live")).toBe(true);
+  });
+});
+
+describe("lite network setup (near-free staging)", () => {
+  const make = (stage: "prod" | "staging", network: "vpc" | "lite") =>
+    new DoseWiseStack(new App({ context: { "aws:cdk:bundling-stacks": [] } }), `N${stage}${network}`, {
+      stage,
+      network,
+      messagingMode: stage === "prod" ? "live" : "test",
+      env: { account: "111111111111", region: "af-south-1" },
+      whatsappPhoneNumberId: "1",
+    });
+
+  it("is refused on the production stack", () => {
+    expect(() => make("prod", "lite")).toThrow(/staging only/);
+  });
+
+  it("has nothing that bills by the hour: no NAT gateway, no VPC endpoints, functions outside the VPC", () => {
+    const s = Template.fromStack(make("staging", "lite"));
+    s.resourceCountIs("AWS::EC2::NatGateway", 0);
+    s.resourceCountIs("AWS::EC2::VPCEndpoint", 0);
+    s.resourceCountIs("AWS::EC2::EIP", 0);
+    const fns = Object.values(s.findResources("AWS::Lambda::Function")).map((f) => (f as { Properties: Record<string, any> }).Properties);
+    const ours = fns.filter((f) => f.Environment?.Variables?.DB_SECRET_ARN);
+    expect(ours).toHaveLength(7);
+    for (const f of ours) {
+      expect(f.VpcConfig).toBeUndefined();
+      expect(f.Environment.Variables.DB_MODE).toBe("data-api");
+      expect(f.Environment.Variables.DB_CLUSTER_ARN).toBeDefined();
+    }
+  });
+
+  it("keeps the database private and encrypted, reachable only through the Data API, pausing when idle", () => {
+    const s = Template.fromStack(make("staging", "lite"));
+    s.hasResourceProperties("AWS::RDS::DBCluster", {
+      EnableHttpEndpoint: true,
+      StorageEncrypted: true,
+      ServerlessV2ScalingConfiguration: Match.objectLike({ MinCapacity: 0 }),
+    });
+    s.hasResourceProperties("AWS::RDS::DBInstance", { PubliclyAccessible: false });
+    s.resourceCountIs("AWS::EC2::SecurityGroupIngress", 0);
+    // Functions may call the Data API on this cluster only.
+    const policies = JSON.stringify(s.findResources("AWS::IAM::Policy"));
+    expect(policies).toContain("rds-data:ExecuteStatement");
+  });
+
+  it("the default vpc setup is unchanged", () => {
+    const s = Template.fromStack(make("staging", "vpc"));
+    s.resourceCountIs("AWS::EC2::NatGateway", 1);
+    s.resourceCountIs("AWS::EC2::VPCEndpoint", 3);
+    s.hasResourceProperties("AWS::RDS::DBCluster", { EnableHttpEndpoint: Match.absent() });
   });
 });

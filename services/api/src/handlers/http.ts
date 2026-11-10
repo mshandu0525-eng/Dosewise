@@ -7,6 +7,7 @@ import { getProfile, inviteCaregiver, listCaregivers, putProfile, revokeCaregive
 import { HttpError, type Deps } from "../domain/deps";
 import { syncSlots } from "../domain/doses";
 import { deleteAccount, exportData } from "../domain/privacy";
+import { listOutbox, runSweepNow, simulateReply } from "../domain/testMode";
 import { getDeps } from "./runtime";
 
 const json = (status: number, body?: unknown): APIGatewayProxyResultV2 => ({
@@ -56,6 +57,13 @@ export async function route(deps: Deps, event: APIGatewayProxyEventV2WithJWTAuth
       case "DELETE /v1/me":
         await deleteAccount(deps, patientId);
         return json(204);
+      // Test messaging mode only (staging); each returns 404 otherwise.
+      case "GET /v1/test/outbox":
+        return json(200, await listOutbox(deps, patientId));
+      case "POST /v1/test/reply":
+        return json(200, await simulateReply(deps, patientId, parseBody(event)));
+      case "POST /v1/test/sweep":
+        return json(200, await runSweepNow(deps));
       default:
         return json(404, { error: "Not found." });
     }

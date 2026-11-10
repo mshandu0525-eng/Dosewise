@@ -13,6 +13,7 @@ import { localParts } from "../lib/time";
 import { HttpError, type Deps } from "./deps";
 import { getProfile } from "./caregivers";
 import { sendTemplate } from "./messaging";
+import { TEST_OUTBOX_RETENTION_DAYS } from "../whatsapp/outbox";
 
 export interface SlotInput {
   /** Patient-local "yyyy-mm-ddTHH:MM". */
@@ -167,5 +168,6 @@ export async function applyRetention(deps: Deps) {
   const slots = await deps.db.query("DELETE FROM slots WHERE due_at < $1", [days(90)]);
   const messages = await deps.db.query("DELETE FROM messages WHERE sent_at < $1", [days(90)]);
   const caregivers = await deps.db.query("DELETE FROM caregivers WHERE ended_at IS NOT NULL AND ended_at < $1", [days(30)]);
-  return { slots: slots.rowCount, messages: messages.rowCount, caregivers: caregivers.rowCount };
+  const testOutbox = await deps.db.query("DELETE FROM test_outbox WHERE sent_at < $1", [days(TEST_OUTBOX_RETENTION_DAYS)]);
+  return { slots: slots.rowCount, messages: messages.rowCount, caregivers: caregivers.rowCount, testOutbox: testOutbox.rowCount };
 }

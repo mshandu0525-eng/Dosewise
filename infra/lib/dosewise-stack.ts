@@ -51,12 +51,30 @@ export interface DoseWiseStackProps extends StackProps {
   smsSenderId?: string;
   /** "prod" keeps data on stack deletion; anything else is disposable. */
   stage: "prod" | "staging";
+  /**
+   * "test" (staging only): messages go to a test outbox instead of WhatsApp/SMS, and
+   * /v1/test routes let testers read them and reply as a family member. Lets the whole
+   * flow be tested before Meta approves the templates. "live" sends for real.
+   */
+  messagingMode?: "live" | "test";
+  /**
+   * "vpc" (default): functions run inside the VPC with a NAT gateway and private links to
+   * AWS services, and reach the database over a pg connection. About USD 75–95 a month.
+   * "lite" (staging only): functions run outside the VPC and reach the database through the
+   * Aurora Data API over HTTPS, so there's no NAT gateway or VPC endpoints, and the database
+   * pauses when idle. About USD 4 a month (keys and secrets), within AWS free-plan credits.
+   */
+  network?: "vpc" | "lite";
 }
 
 export class DoseWiseStack extends Stack {
   constructor(scope: Construct, id: string, props: DoseWiseStackProps) {
     super(scope, id, props);
     const prod = props.stage === "prod";
+    const testMessaging = props.messagingMode === "test";
+    if (prod && testMessaging) throw new Error("Test messaging mode is not allowed on the production stack.");
+    const lite = props.network === "lite";
+    if (prod && lite) throw new Error("The lite network setup is for staging only.");
     const keep = prod ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY;
 
     /* ---------- keys ---------- */
@@ -78,22 +96,29 @@ export class DoseWiseStack extends Stack {
     });
 
     /* ---------- network ---------- */
+    // Lite: the database still sits in isolated subnets, but nothing else is in the VPC,
+    // so there's no NAT gateway, no VPC endpoints and nothing that bills by the hour.
     const vpc = new ec2.Vpc(this, "Vpc", {
       maxAzs: 2,
-      natGateways: 1, // Lambdas reach Meta's API through it
-      subnetConfiguration: [
-        { name: "public", subnetType: ec2.SubnetType.PUBLIC },
-        { name: "app", subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-        { name: "data", subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-      ],
+      natGateways: lite ? 0 : 1, // in "vpc" mode, Lambdas reach Meta's API through it
+      subnetConfiguration: lite
+        ? [{ name: "data", subnetType: ec2.SubnetType.PRIVATE_ISOLATED }]
+        : [
+            { name: "public", subnetType: ec2.SubnetType.PUBLIC },
+            { name: "app", subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+            { name: "data", subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+          ],
     });
-    // AWS service calls stay inside the VPC.
-    vpc.addInterfaceEndpoint("SecretsEndpoint", { service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER });
-    vpc.addInterfaceEndpoint("KmsEndpoint", { service: ec2.InterfaceVpcEndpointAwsService.KMS });
-    vpc.addInterfaceEndpoint("SnsEndpoint", { service: ec2.InterfaceVpcEndpointAwsService.SNS });
-    const lambdaSg = new ec2.SecurityGroup(this, "LambdaSg", { vpc, description: "DoseWise functions" });
     const dbSg = new ec2.SecurityGroup(this, "DbSg", { vpc, description: "DoseWise database", allowAllOutbound: false });
-    dbSg.addIngressRule(lambdaSg, ec2.Port.tcp(5432), "Functions only");
+    let lambdaSg: ec2.SecurityGroup | undefined;
+    if (!lite) {
+      // AWS service calls stay inside the VPC.
+      vpc.addInterfaceEndpoint("SecretsEndpoint", { service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER });
+      vpc.addInterfaceEndpoint("KmsEndpoint", { service: ec2.InterfaceVpcEndpointAwsService.KMS });
+      vpc.addInterfaceEndpoint("SnsEndpoint", { service: ec2.InterfaceVpcEndpointAwsService.SNS });
+      lambdaSg = new ec2.SecurityGroup(this, "LambdaSg", { vpc, description: "DoseWise functions" });
+      dbSg.addIngressRule(lambdaSg, ec2.Port.tcp(5432), "Functions only");
+    }
 
     /* ---------- database ---------- */
     const db = new rds.DatabaseCluster(this, "Db", {
@@ -107,6 +132,8 @@ export class DoseWiseStack extends Stack {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [dbSg],
+      // Lite: functions reach the database over the Data API (IAM + the DB secret, HTTPS).
+      ...(lite ? { enableDataApi: true } : {}),
       storageEncrypted: true,
       storageEncryptionKey: storageKey,
       backup: { retention: Duration.days(prod ? 14 : 1) },
@@ -161,9 +188,7 @@ export class DoseWiseStack extends Stack {
       architecture: lambda.Architecture.ARM_64,
       memorySize: 512,
       timeout: Duration.seconds(20),
-      vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [lambdaSg],
+      ...(lite ? {} : { vpc, vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS }, securityGroups: [lambdaSg!] }),
       projectRoot: ROOT,
       depsLockFilePath: path.join(ROOT, "package-lock.json"),
       bundling: {
@@ -178,10 +203,12 @@ export class DoseWiseStack extends Stack {
       environment: {
         NODE_OPTIONS: "--enable-source-maps",
         DB_SECRET_ARN: db.secret!.secretArn,
+        ...(lite ? { DB_MODE: "data-api", DB_CLUSTER_ARN: db.clusterArn, DB_NAME: "dosewise" } : {}),
         FIELD_KEY_ID: fieldKey.keyArn,
         INDEX_KEY_ID: indexKey.keyArn,
         WHATSAPP_SECRET_ARN: whatsappSecret.secretArn,
         WHATSAPP_PHONE_NUMBER_ID: props.whatsappPhoneNumberId,
+        MESSAGING_MODE: testMessaging ? "test" : "live",
         ...(props.smsSenderId ? { SMS_SENDER_ID: props.smsSenderId } : {}),
       },
     };
@@ -194,6 +221,7 @@ export class DoseWiseStack extends Stack {
         logGroup: new logs.LogGroup(this, `${name}Logs`, { retention: logs.RetentionDays.THREE_MONTHS, removalPolicy: RemovalPolicy.DESTROY }),
       });
       db.secret!.grantRead(f);
+      if (lite) db.grantDataApiAccess(f);
       whatsappSecret.grantRead(f);
       fieldKey.grant(f, "kms:GenerateDataKey", "kms:Decrypt", "kms:Encrypt");
       indexKey.grant(f, "kms:GenerateMac");
@@ -231,6 +259,13 @@ export class DoseWiseStack extends Stack {
       [apigw.HttpMethod.POST, "/v1/caregivers"],
       [apigw.HttpMethod.DELETE, "/v1/caregivers/{id}"],
       [apigw.HttpMethod.PUT, "/v1/slots"],
+      ...(testMessaging
+        ? ([
+            [apigw.HttpMethod.GET, "/v1/test/outbox"],
+            [apigw.HttpMethod.POST, "/v1/test/reply"],
+            [apigw.HttpMethod.POST, "/v1/test/sweep"],
+          ] as [apigw.HttpMethod, string][])
+        : []),
     ];
     for (const [method, routePath] of routes) http.addRoutes({ path: routePath, methods: [method], integration: apiIntegration, authorizer: jwt });
     // Meta can't send a JWT; this route is protected by the request signature instead.
@@ -274,6 +309,8 @@ export class DoseWiseStack extends Stack {
     }
 
     new CfnOutput(this, "ApiUrl", { value: http.apiEndpoint });
+    new CfnOutput(this, "MessagingMode", { value: testMessaging ? "test" : "live" });
+    new CfnOutput(this, "Network", { value: lite ? "lite" : "vpc" });
     new CfnOutput(this, "WebhookUrl", { value: `${http.apiEndpoint}/whatsapp/webhook` });
     new CfnOutput(this, "UserPoolId", { value: users.userPoolId });
     new CfnOutput(this, "UserPoolClientId", { value: appClient.userPoolClientId });

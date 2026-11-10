@@ -1,0 +1,60 @@
+# Lets the "Deploy staging" GitHub Actions workflow deploy to this AWS account, signing in
+# with GitHub's OIDC token instead of stored AWS keys. Create it once with CloudFormation
+# (console: Create stack → Upload this file) in af-south-1, after `cdk bootstrap`.
+#
+# The role can only be used by workflow runs in the repository's "staging" environment,
+# and can only hand the deployment to the CDK bootstrap roles: it has no other permissions.
+AWSTemplateFormatVersion: "2010-09-09"
+Description: DoseWise GitHub Actions deploy role (OIDC)
+
+Parameters:
+  GitHubRepository:
+    Type: String
+    Default: mshandu0525-eng/Dosewise
+    Description: owner/name of the GitHub repository, exactly as GitHub shows it
+  CreateOidcProvider:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "true"
+    Description: Choose false if this account already has the token.actions.githubusercontent.com identity provider
+
+Conditions:
+  MakeProvider: !Equals [!Ref CreateOidcProvider, "true"]
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: MakeProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: dosewise-github-deploy-staging
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubRepository}:environment:staging
+      Policies:
+        - PolicyName: use-cdk-bootstrap-roles
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: sts:AssumeRole
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-*-${AWS::AccountId}-af-south-1
+
+Outputs:
+  RoleArn:
+    Description: Save this as the AWS_DEPLOY_ROLE_ARN secret of the GitHub "staging" environment
+    Value: !GetAtt DeployRole.Arn
