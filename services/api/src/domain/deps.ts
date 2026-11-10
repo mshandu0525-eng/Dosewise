@@ -18,6 +18,8 @@ export interface Config {
   /** Version of the caregiver-sharing notice shown in the app; recorded with each consent. */
   noticeVersion: string;
   maxCaregivers: number;
+  /** Staging only: messages go to the test outbox instead of WhatsApp/SMS, and /v1/test routes work. */
+  testMessaging: boolean;
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -27,6 +29,7 @@ export const DEFAULT_CONFIG: Config = {
   maxAlertLagMinutes: 360,
   noticeVersion: "2026-11-caregiver-v1",
   maxCaregivers: 5,
+  testMessaging: false,
 };
 
 export interface Deps {

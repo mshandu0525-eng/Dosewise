@@ -11,6 +11,7 @@ import { Button, Card, Row, Screen, T } from "@/components/ui";
 import { ApiError, api, cloudConfigured, finishSignIn, signOut, startSignIn, useSignedIn, type PendingSignIn } from "@/lib/cloud";
 import { syncFamily } from "@/lib/family";
 import { setSetting, useSettings } from "@/lib/store";
+import { TESTER_BUILD } from "@/lib/tester";
 import { useTheme } from "@/lib/theme";
 
 interface Profile {
@@ -173,6 +174,90 @@ function AddCaregiver({ displayName, noticeVersion, withNames, onDone }: { displ
       <Button label="I agree, send the invite" icon="checkmark" disabled={busy} onPress={() => void invite()} />
       <Button variant="ghost" label="Back" onPress={() => setStep("form")} />
     </Card>
+  );
+}
+
+interface OutboxMessage {
+  id: string;
+  channel: "whatsapp" | "sms";
+  to: string;
+  text: string;
+  buttons: { text: string; payload: string }[];
+  sentAt: string;
+}
+
+/**
+ * Beta builds against a staging backend in test messaging mode: shows the messages family
+ * members would have received, and lets the tester tap their buttons or reply STOP as them.
+ * Hidden when the backend sends for real (the test routes then answer 404).
+ */
+function TestMessages() {
+  const t = useTheme();
+  const [messages, setMessages] = useState<OutboxMessage[] | null>(null);
+  const [note, setNote] = useState("");
+
+  const load = useCallback(async () => {
+    try {
+      setMessages((await api<{ messages: OutboxMessage[] }>("GET", "/v1/test/outbox")).messages);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) setMessages(null); // live backend: hide
+      else setNote(message(e));
+    }
+  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
+
+  const reply = async (to: string, body: { payload?: string; text?: string }) => {
+    try {
+      setMessages((await api<{ messages: OutboxMessage[] }>("POST", "/v1/test/reply", { phone: to, ...body })).messages);
+      setNote("Reply sent as the family member.");
+    } catch (e) {
+      setNote(message(e));
+    }
+  };
+
+  const sweep = async () => {
+    try {
+      const r = await api<{ slots: number; sent: number }>("POST", "/v1/test/sweep");
+      setNote(`Missed-dose check: ${r.sent} alert${r.sent === 1 ? "" : "s"} sent.`);
+      await load();
+    } catch (e) {
+      setNote(message(e));
+    }
+  };
+
+  if (messages === null) return null;
+  return (
+    <>
+      <T kind="heading">Test messages</T>
+      <T kind="small" muted>
+        Test server: nothing is sent by WhatsApp or SMS. These are the messages family members would get. Tap a button to answer
+        as them.
+      </T>
+      <Row wrap>
+        <Button variant="outline" icon="refresh" label="Refresh" onPress={() => void load()} />
+        <Button variant="outline" icon="alarm" label="Run missed-dose check" onPress={() => void sweep()} />
+      </Row>
+      {note ? <T kind="small" bold accessibilityLiveRegion="polite">{note}</T> : null}
+      {messages.length === 0 && <T muted>No messages yet. Add a family member to send an invite.</T>}
+      {messages.map((m) => (
+        <Card key={m.id} style={{ backgroundColor: t.colors.neutralBg }}>
+          <T kind="small" muted>
+            To {maskPhone(m.to)} by {m.channel === "sms" ? "SMS" : "WhatsApp"} · {new Date(m.sentAt).toLocaleTimeString()}
+          </T>
+          <T>{m.text}</T>
+          <Row wrap>
+            {m.buttons.map((b) => (
+              <Button key={b.payload} variant="outline" label={b.text} hint={`Answers as ${maskPhone(m.to)}`} onPress={() => void reply(m.to, { payload: b.payload })} />
+            ))}
+            <Button variant="ghost" label="Reply STOP" onPress={() => void reply(m.to, { text: "STOP" })} />
+          </Row>
+        </Card>
+      ))}
+    </>
   );
 }
 
@@ -359,6 +444,8 @@ export default function Family() {
           </Card>
         </>
       )}
+
+      {TESTER_BUILD && <TestMessages />}
 
       <T kind="heading">Your online data</T>
       <Button

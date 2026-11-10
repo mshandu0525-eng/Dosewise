@@ -51,12 +51,20 @@ export interface DoseWiseStackProps extends StackProps {
   smsSenderId?: string;
   /** "prod" keeps data on stack deletion; anything else is disposable. */
   stage: "prod" | "staging";
+  /**
+   * "test" (staging only): messages go to a test outbox instead of WhatsApp/SMS, and
+   * /v1/test routes let testers read them and reply as a family member. Lets the whole
+   * flow be tested before Meta approves the templates. "live" sends for real.
+   */
+  messagingMode?: "live" | "test";
 }
 
 export class DoseWiseStack extends Stack {
   constructor(scope: Construct, id: string, props: DoseWiseStackProps) {
     super(scope, id, props);
     const prod = props.stage === "prod";
+    const testMessaging = props.messagingMode === "test";
+    if (prod && testMessaging) throw new Error("Test messaging mode is not allowed on the production stack.");
     const keep = prod ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY;
 
     /* ---------- keys ---------- */
@@ -182,6 +190,7 @@ export class DoseWiseStack extends Stack {
         INDEX_KEY_ID: indexKey.keyArn,
         WHATSAPP_SECRET_ARN: whatsappSecret.secretArn,
         WHATSAPP_PHONE_NUMBER_ID: props.whatsappPhoneNumberId,
+        MESSAGING_MODE: testMessaging ? "test" : "live",
         ...(props.smsSenderId ? { SMS_SENDER_ID: props.smsSenderId } : {}),
       },
     };
@@ -231,6 +240,13 @@ export class DoseWiseStack extends Stack {
       [apigw.HttpMethod.POST, "/v1/caregivers"],
       [apigw.HttpMethod.DELETE, "/v1/caregivers/{id}"],
       [apigw.HttpMethod.PUT, "/v1/slots"],
+      ...(testMessaging
+        ? ([
+            [apigw.HttpMethod.GET, "/v1/test/outbox"],
+            [apigw.HttpMethod.POST, "/v1/test/reply"],
+            [apigw.HttpMethod.POST, "/v1/test/sweep"],
+          ] as [apigw.HttpMethod, string][])
+        : []),
     ];
     for (const [method, routePath] of routes) http.addRoutes({ path: routePath, methods: [method], integration: apiIntegration, authorizer: jwt });
     // Meta can't send a JWT; this route is protected by the request signature instead.
@@ -274,6 +290,7 @@ export class DoseWiseStack extends Stack {
     }
 
     new CfnOutput(this, "ApiUrl", { value: http.apiEndpoint });
+    new CfnOutput(this, "MessagingMode", { value: testMessaging ? "test" : "live" });
     new CfnOutput(this, "WebhookUrl", { value: `${http.apiEndpoint}/whatsapp/webhook` });
     new CfnOutput(this, "UserPoolId", { value: users.userPoolId });
     new CfnOutput(this, "UserPoolClientId", { value: appClient.userPoolClientId });

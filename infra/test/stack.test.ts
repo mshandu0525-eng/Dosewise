@@ -61,6 +61,7 @@ describe("access", () => {
     const open = routes.filter((r) => r.AuthorizationType !== "JWT").map((r) => r.RouteKey).sort();
     expect(open).toEqual(["GET /whatsapp/webhook", "POST /whatsapp/webhook"]);
     expect(routes.filter((r) => r.AuthorizationType === "JWT")).toHaveLength(8);
+    expect(routes.some((r) => r.RouteKey.includes("/v1/test/"))).toBe(false);
   });
 
   it("signs people in with SMS codes on the Essentials plan", () => {
@@ -93,5 +94,37 @@ describe("jobs", () => {
 
   it("alarms when the sweep, webhook or API fail", () => {
     t.resourceCountIs("AWS::CloudWatch::Alarm", 3);
+  });
+});
+
+describe("test messaging mode", () => {
+  const stack = (stage: "prod" | "staging", messagingMode: "live" | "test") =>
+    new DoseWiseStack(new App({ context: { "aws:cdk:bundling-stacks": [] } }), `M${stage}${messagingMode}`, {
+      stage,
+      messagingMode,
+      env: { account: "111111111111", region: "af-south-1" },
+      whatsappPhoneNumberId: "1",
+    });
+
+  it("is refused on the production stack", () => {
+    expect(() => stack("prod", "test")).toThrow(/not allowed on the production stack/);
+  });
+
+  it("on staging, adds the test routes behind the Cognito authoriser and sets every function to test mode", () => {
+    const s = Template.fromStack(stack("staging", "test"));
+    const routes = Object.values(s.findResources("AWS::ApiGatewayV2::Route")).map(
+      (r) => (r as { Properties: { RouteKey: string; AuthorizationType?: string } }).Properties,
+    );
+    const testRoutes = routes.filter((r) => r.RouteKey.includes("/v1/test/"));
+    expect(testRoutes.map((r) => r.RouteKey).sort()).toEqual(["GET /v1/test/outbox", "POST /v1/test/reply", "POST /v1/test/sweep"]);
+    expect(testRoutes.every((r) => r.AuthorizationType === "JWT")).toBe(true);
+    const fns = Object.values(s.findResources("AWS::Lambda::Function")).map((f) => (f as { Properties: Record<string, any> }).Properties);
+    const ours = fns.filter((f) => f.Environment?.Variables?.DB_SECRET_ARN);
+    expect(ours.every((f) => f.Environment.Variables.MESSAGING_MODE === "test")).toBe(true);
+  });
+
+  it("production functions run live", () => {
+    const fns = Object.values(t.findResources("AWS::Lambda::Function")).map((f) => (f as { Properties: Record<string, any> }).Properties);
+    expect(fns.filter((f) => f.Environment?.Variables?.DB_SECRET_ARN).every((f) => f.Environment.Variables.MESSAGING_MODE === "live")).toBe(true);
   });
 });

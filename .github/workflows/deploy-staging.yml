@@ -1,0 +1,80 @@
+# Deploys the staging backend (af-south-1) in test messaging mode: nothing is sent by
+# WhatsApp or SMS until the templates are approved. Run it from the Actions tab.
+#
+# One-time setup: see "Deploy a test backend" in README.md (enable af-south-1,
+# bootstrap CDK, create the GitHub deploy role, add the AWS_DEPLOY_ROLE_ARN secret).
+name: Deploy staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      messaging_mode:
+        description: "test = messages go to the test outbox; live = real WhatsApp/SMS (needs approved templates)"
+        type: choice
+        options: [test, live]
+        default: test
+
+permissions:
+  id-token: write # OIDC sign-in to AWS, no stored AWS keys
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # npm 10 has an install bug with this workspace tree; npm 11 is fine.
+      - name: Install
+        run: npx -y npm@11 ci
+
+      - name: Test
+        run: npm test
+
+      - name: Sign in to AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: af-south-1
+
+      - name: Deploy
+        working-directory: infra
+        run: >
+          npx cdk deploy DoseWise-staging
+          -c stage=staging
+          -c messagingMode=${{ inputs.messaging_mode }}
+          -c whatsappPhoneNumberId=${{ vars.WHATSAPP_PHONE_NUMBER_ID || 'SET_ME' }}
+          --require-approval never
+          --outputs-file cdk-outputs.json
+          --no-notices
+
+      - name: Summary
+        working-directory: infra
+        run: |
+          node -e '
+            const o = require("./cdk-outputs.json")["DoseWise-staging"];
+            const lines = [
+              "## Staging deployed",
+              "",
+              "| Setting | Value |", "| --- | --- |",
+              `| Messaging mode | ${o.MessagingMode} |`,
+              `| EXPO_PUBLIC_API_URL | ${o.ApiUrl} |`,
+              `| EXPO_PUBLIC_COGNITO_CLIENT_ID | ${o.UserPoolClientId} |`,
+              `| User pool | ${o.UserPoolId} |`,
+              `| WhatsApp webhook (live mode) | ${o.WebhookUrl} |`,
+              "",
+              "Put the two EXPO_PUBLIC_* values into the preview profile in apps/mobile/eas.json.",
+            ];
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+          '

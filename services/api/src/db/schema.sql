@@ -73,3 +73,18 @@ CREATE TABLE IF NOT EXISTS messages (
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS messages_patient ON messages (patient_id);
+
+-- Test messaging mode (staging only): messages are written here instead of being sent
+-- through WhatsApp or SMS, so the whole flow can be tested before Meta approves the
+-- templates. Always empty in production. Kept 7 days.
+CREATE TABLE IF NOT EXISTS test_outbox (
+  id                  TEXT PRIMARY KEY,
+  channel             TEXT NOT NULL,                  -- whatsapp | sms
+  to_index            TEXT NOT NULL,                  -- same keyed hash as caregivers.phone_index
+  to_enc              TEXT NOT NULL,
+  template            TEXT,
+  text                TEXT NOT NULL,
+  buttons             JSONB NOT NULL DEFAULT '[]',
+  sent_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS test_outbox_to ON test_outbox (to_index);
