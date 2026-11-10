@@ -1,0 +1,27 @@
+{
+  "name": "@dosewise/api",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "templates": "tsx scripts/print-templates.ts"
+  },
+  "dependencies": {
+    "@dosewise/core": "*",
+    "@aws-sdk/client-kms": "^3.1163.0",
+    "@aws-sdk/client-secrets-manager": "^3.1163.0",
+    "@aws-sdk/client-sns": "^3.1163.0",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.164",
+    "@types/node": "^22",
+    "@types/pg": "^8.23.1",
+    "pg-mem": "^3.0.14",
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.10"
+  }
+}

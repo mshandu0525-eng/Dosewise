@@ -1,0 +1,37 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_TESTER_MODE": "1",
+        "EXPO_PUBLIC_API_URL": "SET_AFTER_DEPLOY",
+        "EXPO_PUBLIC_COGNITO_CLIENT_ID": "SET_AFTER_DEPLOY",
+        "EXPO_PUBLIC_AWS_REGION": "af-south-1",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://fa84bf6ec0dcbad457ff9415e584d529@o4512385504444416.ingest.de.sentry.io/4512386320433232"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "SET_AFTER_DEPLOY",
+        "EXPO_PUBLIC_COGNITO_CLIENT_ID": "SET_AFTER_DEPLOY",
+        "EXPO_PUBLIC_AWS_REGION": "af-south-1",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://fa84bf6ec0dcbad457ff9415e584d529@o4512385504444416.ingest.de.sentry.io/4512386320433232"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

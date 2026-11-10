@@ -1,0 +1,16 @@
+{
+  "name": "dosewise",
+  "private": true,
+  "license": "MIT",
+  "workspaces": [
+    "apps/mobile",
+    "packages/*",
+    "services/*",
+    "infra"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "mobile": "npm run start --workspace mobile"
+  }
+}

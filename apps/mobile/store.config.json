@@ -1,0 +1,81 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "copyright": "2026 DoseWise",
+    "categories": [
+      "MEDICAL",
+      "HEALTH_AND_FITNESS"
+    ],
+    "advisory": {
+      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "contests": "NONE",
+      "gamblingSimulated": "NONE",
+      "horrorOrFearThemes": "NONE",
+      "matureOrSuggestiveThemes": "NONE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "medicalOrTreatmentInformation": "INFREQUENT_OR_MILD",
+      "gambling": false,
+      "unrestrictedWebAccess": false,
+      "kidsAgeBand": null,
+      "ageRatingOverride": "NONE",
+      "koreaAgeRatingOverride": "NONE"
+    },
+    "info": {
+      "en-GB": {
+        "title": "DoseWise",
+        "subtitle": "Medicine reminders & checks",
+        "description": "DoseWise reminds you to take your medicines on time, using your phone's own alarms, so reminders work even without internet.\n\nSIMPLE FOR EVERYONE\n• Easy View: larger text and buttons, fewer screens, and confirmations read aloud\n• Log a dose straight from the reminder: Taken, Snooze or Skip\n• Medicines due at the same time share one reminder, so you aren't flooded with alerts\n• Mark a medicine as critical and DoseWise rings like an alarm if it's 30 minutes late\n\nCHECK YOU HAVE THE RIGHT MEDICINE\n• Scan the box to fill in the name and strength\n• Before a dose, take a photo of the box or pill: DoseWise checks the strength against your prescription and warns you if it's different\n• Photos are checked on your phone and deleted straight after\n\nFAMILY UPDATES (OPTIONAL)\n• Choose up to 5 family members to get a WhatsApp message if a dose isn't confirmed, a daily summary, or both\n• They see the time, not your medicine names, unless you choose otherwise\n• You can stop sharing at any time; they can reply STOP\n\nPRIVATE BY DESIGN\n• Your medicines, history and photos stay on your phone, in encrypted storage\n• No account needed unless you turn on family updates\n• Family updates are stored in South Africa and follow POPIA\n• No ads, no tracking\n\nDoseWise helps you remember and record your medicines. It does not give medical advice and doesn't replace your doctor or pharmacist.",
+        "keywords": [
+          "medication",
+          "pill reminder",
+          "medicine",
+          "dose",
+          "tracker",
+          "adherence",
+          "pharmacy",
+          "family",
+          "caregiver",
+          "prescription"
+        ],
+        "releaseNotes": "First release.",
+        "supportUrl": "https://dosewise.example/support",
+        "marketingUrl": "https://dosewise.example",
+        "privacyPolicyUrl": "https://dosewise.example/privacy"
+      },
+      "en-US": {
+        "title": "DoseWise",
+        "subtitle": "Medicine reminders & checks",
+        "description": "DoseWise reminds you to take your medicines on time, using your phone's own alarms, so reminders work even without internet.\n\nSIMPLE FOR EVERYONE\n• Easy View: larger text and buttons, fewer screens, and confirmations read aloud\n• Log a dose straight from the reminder: Taken, Snooze or Skip\n• Medicines due at the same time share one reminder, so you aren't flooded with alerts\n• Mark a medicine as critical and DoseWise rings like an alarm if it's 30 minutes late\n\nCHECK YOU HAVE THE RIGHT MEDICINE\n• Scan the box to fill in the name and strength\n• Before a dose, take a photo of the box or pill: DoseWise checks the strength against your prescription and warns you if it's different\n• Photos are checked on your phone and deleted straight after\n\nFAMILY UPDATES (OPTIONAL)\n• Choose up to 5 family members to get a WhatsApp message if a dose isn't confirmed, a daily summary, or both\n• They see the time, not your medicine names, unless you choose otherwise\n• You can stop sharing at any time; they can reply STOP\n\nPRIVATE BY DESIGN\n• Your medicines, history and photos stay on your phone, in encrypted storage\n• No account needed unless you turn on family updates\n• Family updates are stored in South Africa and follow POPIA\n• No ads, no tracking\n\nDoseWise helps you remember and record your medicines. It does not give medical advice and doesn't replace your doctor or pharmacist.",
+        "keywords": [
+          "medication",
+          "pill reminder",
+          "medicine",
+          "dose",
+          "tracker",
+          "adherence",
+          "pharmacy",
+          "family",
+          "caregiver",
+          "prescription"
+        ],
+        "releaseNotes": "First release.",
+        "supportUrl": "https://dosewise.example/support",
+        "marketingUrl": "https://dosewise.example",
+        "privacyPolicyUrl": "https://dosewise.example/privacy"
+      }
+    },
+    "review": {
+      "firstName": "SET_ME",
+      "lastName": "SET_ME",
+      "email": "review-contact@dosewise.example",
+      "phone": "+27000000000",
+      "demoRequired": false,
+      "notes": "DoseWise works fully without an account: add a medicine (or tap 'Scan the box'), then use Taken/Snooze/Skip on the reminder. Photo checks run on the device. Only the optional 'Family updates' feature (Settings > Family updates) needs sign-in, by SMS code to a phone number; a demo video of that flow is attached. Time Sensitive notifications are used only for the 10- and 30-minute follow-ups when a dose is not logged. The app does not provide dosing advice: the photo check only compares the strength printed on the box with the strength the user entered."
+    }
+  }
+}
