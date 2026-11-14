@@ -1,0 +1,18 @@
+{
+  "name": "MzanziSave",
+  "short_name": "MzanziSave",
+  "description": "Compare South African grocery specials, clip coupons and split your basket to save.",
+  "start_url": "./#deals",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f7f5",
+  "theme_color": "#047857",
+  "lang": "en-ZA",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

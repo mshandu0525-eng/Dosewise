@@ -1,0 +1,50 @@
+# Builds the MzanziSave PWA (apps/mzanzisave) and publishes it to GitHub Pages:
+# https://mshandu0525-eng.github.io/Dosewise/
+name: MzanziSave Pages
+
+on:
+  push:
+    branches: [main, ccr-a78fc2d9-wa33fx]
+    paths:
+      - apps/mzanzisave/**
+      - .github/workflows/mzanzisave-pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: mzanzisave-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mzanzisave
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mzanzisave/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/mzanzisave/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

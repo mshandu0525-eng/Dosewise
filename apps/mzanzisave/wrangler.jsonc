@@ -1,0 +1,9 @@
+{
+  // Static-assets Worker: Cloudflare serves the built PWA in dist/ with no server code.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mzanzisave",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist"
+  }
+}
