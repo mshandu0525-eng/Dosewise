@@ -1,9 +1,12 @@
 {
-  // Static-assets Worker: Cloudflare serves the built PWA in dist/ with no server code.
+  // Worker: /api/prices (hourly price feed) + the built PWA in dist/ as static assets.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "mzanzisave",
+  "main": "cloudflare/worker.ts",
   "compatibility_date": "2026-11-01",
   "assets": {
-    "directory": "./dist"
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
   }
 }

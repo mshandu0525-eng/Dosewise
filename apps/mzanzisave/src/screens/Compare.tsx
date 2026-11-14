@@ -9,6 +9,7 @@ import { formatUnitPrice, packLabel, percentOff, zar, unitLabel, type PackSize }
 import { BestValueBadge, ExpiryChip } from '../components/OfferCard';
 import { Empty, Pill, StorePill, useToast } from '../components/ui';
 import type { NearbyBranch } from '../data/branches';
+import { MyStoresBar, PreferredStar } from '../components/MyStores';
 
 function PackCalculator() {
   const [a, setA] = useState({ price: '74.99', size: '2', unit: 'L' });
@@ -66,7 +67,7 @@ function PackCalculator() {
   );
 }
 
-export function Compare({ onAlert }: { onAlert: (id: string) => void }) {
+export function Compare({ onAlert, onEditStores }: { onAlert: (id: string) => void; onEditStores: () => void }) {
   const { state, dispatch } = useApp();
   const toast = useToast();
   const { branches, today, city } = useArea();
@@ -98,6 +99,8 @@ export function Compare({ onAlert }: { onAlert: (id: string) => void }) {
         <h1 className="display text-2xl font-black">True unit price</h1>
         <p className="text-sm text-muted">Every pack size, every store in range, ranked by what you really pay per kg or litre.</p>
       </div>
+
+      <MyStoresBar onEdit={onEditStores} />
 
       <PackCalculator />
 
@@ -162,6 +165,7 @@ export function Compare({ onAlert }: { onAlert: (id: string) => void }) {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <StorePill retailerId={o.branch.retailerId} label={o.branch.retailerId === 'local' ? o.branch.name : undefined} size="xs" />
+                            <PreferredStar retailerId={o.branch.retailerId} />
                             <span className="text-[11px] text-muted">{(o.branch as NearbyBranch).distanceKm.toFixed(1)} km</span>
                           </div>
                           <p className="mt-1 text-[14px] leading-snug font-semibold">

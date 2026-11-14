@@ -9,6 +9,7 @@ import { basketText, whatsappUrl } from '../lib/share';
 import { openStatus } from '../data/branches';
 import { Empty, Segmented, StorePill, Thumb, useToast } from '../components/ui';
 import { todaySA } from '../lib/date';
+import { MyStoresBar, PreferredStar } from '../components/MyStores';
 
 function PlanLines({ plan }: { plan: StorePlan }) {
   return (
@@ -31,7 +32,7 @@ function PlanLines({ plan }: { plan: StorePlan }) {
   );
 }
 
-export function Basket() {
+export function Basket({ onEditStores }: { onEditStores: () => void }) {
   const { state, dispatch } = useApp();
   const toast = useToast();
   const { branches, today, now, label } = useArea();
@@ -128,6 +129,8 @@ export function Basket() {
         </div>
       </section>
 
+      <MyStoresBar onEdit={onEditStores} />
+
       <Segmented
         value={mode}
         onChange={setMode}
@@ -160,6 +163,7 @@ export function Basket() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <StorePill retailerId={s.branch.retailerId} size="xs" label={s.branch.retailerId === 'local' ? 'Local' : undefined} />
+                      <PreferredStar retailerId={s.branch.retailerId} />
                       <span className="text-[11px] text-muted">{s.branch.distanceKm.toFixed(1)} km</span>
                       <span className={`text-[11px] font-semibold ${st.open ? (st.closingSoon ? 'text-warn' : 'text-save') : 'text-hot'}`}>{st.label}</span>
                     </div>

@@ -3,6 +3,7 @@ import { nearbyBranches } from '../data/branches';
 import { CITY_BY_ID, findSuburb } from '../data/locations';
 import { todaySA } from './date';
 import { useApp } from './state';
+import { useFeed } from './useFeed';
 
 /** Current time, refreshed every minute so "Open now" badges and expiry stay live. */
 export function useNow(): number {
@@ -24,8 +25,12 @@ export function useArea() {
   const now = useNow();
   const today = todaySA(now);
   const { area } = state;
-  const branches = useMemo(() => nearbyBranches(area, now), [area, now]);
+  const { feed } = useFeed();
+  const only = state.myStoresOnly ? state.preferredStores : undefined;
+  // The feed version is a dependency so every screen recomputes when new prices arrive.
+  const feedVersion = feed?.version ?? 'none';
+  const branches = useMemo(() => nearbyBranches(area, now, only), [area, now, only, feedVersion]); // eslint-disable-line react-hooks/exhaustive-deps
   const city = CITY_BY_ID[area.cityId];
   const suburb = findSuburb(area.cityId, area.suburbId);
-  return { now, today, branches, city, suburb, label: `${suburb.name}, ${city.name}` };
+  return { now, today, branches, city, suburb, label: `${suburb.name}, ${city.name}`, feedVersion, myStoresOnly: !!only };
 }

@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Gauge, Trash2, Bell } from 'lucide-react';
+import { Gauge, Trash2, Bell, Star, ChevronRight } from 'lucide-react';
+import { PriceStatus } from './MyStores';
+import { RETAILER_BY_ID } from '../data/retailers';
 import { useApp } from '../lib/state';
 import { Sheet, useToast } from './ui';
 import { zar } from '../lib/format';
 import { monthName, todaySA } from '../lib/date';
 
-export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function SettingsSheet({ open, onClose, onEditStores }: { open: boolean; onClose: () => void; onEditStores: () => void }) {
   const { state, dispatch, savedThisMonth } = useApp();
   const toast = useToast();
   const [confirm, setConfirm] = useState(false);
@@ -31,7 +33,24 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
         </ul>
       )}
 
-      <label className="mt-4 flex items-center gap-3 rounded-2xl border border-line p-3">
+      <button onClick={onEditStores} className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-line p-3 text-left">
+        <Star className="shrink-0 text-[#f59e0b]" />
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">My preferred stores</span>
+          <span className="block truncate text-xs text-muted">
+            {state.preferredStores.length ? state.preferredStores.map((id) => RETAILER_BY_ID[id]?.short).join(', ') : 'None chosen yet'}
+            {state.myStoresOnly ? ' · showing only these' : ''}
+          </span>
+        </span>
+        <ChevronRight className="shrink-0 text-muted" size={18} />
+      </button>
+
+      <div className="mt-3 rounded-2xl border border-line p-3">
+        <p className="mb-1.5 font-semibold">Price updates</p>
+        <PriceStatus />
+      </div>
+
+      <label className="mt-3 flex items-center gap-3 rounded-2xl border border-line p-3">
         <Gauge className="shrink-0 text-muted" />
         <span className="flex-1">
           <span className="block font-semibold">Data-Saver mode</span>

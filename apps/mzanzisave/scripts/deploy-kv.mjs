@@ -2,8 +2,9 @@
 // Used where Wrangler's asset upload can't run (e.g. behind a proxy that rewrites the
 // Authorization header). Needs CLOUDFLARE_API_TOKEN (Edit Cloudflare Workers template).
 // Usage: npm run build && node scripts/deploy-kv.mjs
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, rmSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { execSync } from 'node:child_process';
 
 const API = 'https://api.cloudflare.com/client/v4';
 const token = process.env.CLOUDFLARE_API_TOKEN;
@@ -37,9 +38,14 @@ for (const file of files('dist')) {
   console.log('uploaded', key);
 }
 
+// Bundle cloudflare/worker.ts (and the shared price feed code) with Wrangler, without deploying.
+rmSync('dist-worker', { recursive: true, force: true });
+execSync('npx wrangler deploy --dry-run --outdir dist-worker', { stdio: 'inherit', env: { ...process.env, WRANGLER_SEND_METRICS: 'false' } });
+const bundle = readFileSync('dist-worker/worker.js');
+
 const form = new FormData();
 form.append('metadata', new Blob([JSON.stringify({ main_module: 'worker.js', compatibility_date: '2026-11-01', bindings: [{ type: 'kv_namespace', name: 'KV', namespace_id: ns.id }] })], { type: 'application/json' }));
-form.append('worker.js', new Blob([readFileSync('cloudflare/kv-worker.js')], { type: 'application/javascript+module' }), 'worker.js');
+form.append('worker.js', new Blob([bundle], { type: 'application/javascript+module' }), 'worker.js');
 await cf(`${A}/workers/scripts/${NAME}`, { method: 'PUT', body: form });
 await cf(`${A}/workers/scripts/${NAME}/subdomain`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: true, previews_enabled: false }) });
 const { subdomain } = await cf(`${A}/workers/subdomain`);

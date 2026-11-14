@@ -4,6 +4,7 @@ import { BottomNav, Header, type Tab } from './components/Chrome';
 import { LocationSheet } from './components/LocationSheet';
 import { SettingsSheet } from './components/SettingsSheet';
 import { AlertSheet } from './components/AlertSheet';
+import { MyStoresSheet } from './components/MyStores';
 import { ToastProvider } from './components/ui';
 import { Deals } from './screens/Deals';
 import { Compare } from './screens/Compare';
@@ -25,11 +26,13 @@ const tabFromHash = (): Tab => {
 
 function Shell() {
   const { state, dispatch } = useApp();
-  const { label, today } = useArea();
+  const { label, today, feedVersion } = useArea();
   const [tab, setTab] = useState<Tab>(tabFromHash);
   const [locOpen, setLocOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [alertFor, setAlertFor] = useState<string | null>(null);
+  const [storesOpen, setStoresOpen] = useState(false);
+  const editStores = useCallback(() => setStoresOpen(true), []);
   const [fired, setFired] = useState<FiredAlert[]>([]);
 
   useEffect(() => {
@@ -53,7 +56,7 @@ function Shell() {
       dispatch({ type: 'alertFired', productId: d.alert.productId, day: today, price: priceOf(d.offer), store: d.offer.branch.name });
       systemNotify(`Price drop: ${productTitle(d.offer.product)}`, `Now ${zar(priceOf(d.offer))} at ${d.offer.branch.name} (your target ${zar(d.alert.target)})`);
     }
-  }, [state.alerts, state.area.cityId, today, dispatch]);
+  }, [state.alerts, state.area.cityId, today, feedVersion, dispatch]);
 
   return (
     <div className="min-h-dvh">
@@ -73,15 +76,16 @@ function Shell() {
             </button>
           </div>
         )}
-        {tab === 'deals' && <Deals onAlert={setAlertFor} fired={fired} onDismissFired={() => setFired([])} />}
-        {tab === 'compare' && <Compare onAlert={setAlertFor} />}
+        {tab === 'deals' && <Deals onAlert={setAlertFor} fired={fired} onDismissFired={() => setFired([])} onEditStores={editStores} />}
+        {tab === 'compare' && <Compare onAlert={setAlertFor} onEditStores={editStores} />}
         {tab === 'coupons' && <Coupons />}
-        {tab === 'basket' && <Basket />}
+        {tab === 'basket' && <Basket onEditStores={editStores} />}
         {tab === 'scan' && <Scan />}
       </main>
       <BottomNav tab={tab} onTab={go} />
       <LocationSheet open={locOpen} onClose={() => setLocOpen(false)} />
-      <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} onEditStores={() => { setSettingsOpen(false); setStoresOpen(true); }} />
+      <MyStoresSheet open={storesOpen} onClose={() => setStoresOpen(false)} />
       <AlertSheet productId={alertFor} onClose={() => setAlertFor(null)} today={today} />
     </div>
   );

@@ -3,6 +3,7 @@ import { PRODUCTS, PRODUCT_BY_ID, type Product } from './products';
 import type { Branch } from './branches';
 import { between, hash } from '../lib/random';
 import { unitPrice } from '../lib/format';
+import { activeFeedVersion, hourlyDeal } from '../lib/feed';
 
 export interface Offer {
   product: Product;
@@ -15,6 +16,8 @@ export interface Offer {
   validTo?: number;
   /** Loyalty card needed for the special, e.g. "Xtra Savings". */
   loyalty?: string;
+  /** Came in with this hour's price update; ends tonight. */
+  hourly?: boolean;
 }
 
 export const priceOf = (o: Offer) => o.special ?? o.regular;
@@ -44,7 +47,7 @@ const cache = new Map<string, Offer | null>();
  * so a deal keeps the same dates every time it is looked at, and new deals roll in daily.
  */
 export function getOffer(p: Product, branch: Branch, today: number): Offer | null {
-  const key = `${branch.priceScope}|${branch.id}|${p.id}|${today}`;
+  const key = `${branch.priceScope}|${branch.id}|${p.id}|${today}|${activeFeedVersion()}`;
   const hit = cache.get(key);
   if (hit !== undefined) return hit;
   let offer: Offer | null = null;
@@ -69,6 +72,18 @@ export function getOffer(p: Product, branch: Branch, today: number): Offer | nul
         offer.validFrom = start;
         offer.validTo = end;
         if (r.loyalty && hash(`loy|${scope}|${p.id}|${cycle}`) < 0.35) offer.loyalty = r.loyalty;
+      }
+    }
+    // Hourly price update: chain-wide deals that end tonight.
+    const hd = branch.priceScope === r.id ? hourlyDeal(r.id, p.id) : undefined;
+    if (hd) {
+      const flash = shelfPrice(regular * (1 - hd.pct));
+      if (flash < regular - 0.5 && (offer.special === undefined || flash < offer.special)) {
+        offer.special = flash;
+        offer.validFrom = today;
+        offer.validTo = today;
+        offer.loyalty = undefined;
+        offer.hourly = true;
       }
     }
   }

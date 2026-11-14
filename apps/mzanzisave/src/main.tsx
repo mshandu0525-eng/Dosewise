@@ -3,11 +3,14 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App';
 import { AppProvider } from './lib/state';
+import { FeedProvider } from './lib/useFeed';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AppProvider>
-      <App />
+      <FeedProvider>
+        <App />
+      </FeedProvider>
     </AppProvider>
   </StrictMode>,
 );

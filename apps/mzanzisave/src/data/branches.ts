@@ -121,12 +121,13 @@ export interface NearbyBranch extends Branch {
   distanceKm: number;
 }
 
-export function nearbyBranches(f: AreaFilter, now: number = Date.now()): NearbyBranch[] {
+export function nearbyBranches(f: AreaFilter, now: number = Date.now(), onlyRetailers?: string[]): NearbyBranch[] {
   const city = CITIES.find((c) => c.id === f.cityId) ?? CITIES[0];
   const sub = city.suburbs.find((x) => x.id === f.suburbId) ?? city.suburbs[0];
   return BRANCHES.filter((b) => b.cityId === city.id)
     .map((b) => ({ ...b, distanceKm: distanceKm(sub.lat, sub.lng, b.lat, b.lng) }))
     .filter((b) => b.distanceKm <= f.radiusKm)
+    .filter((b) => !onlyRetailers?.length || onlyRetailers.includes(b.retailerId))
     .filter((b) => (!f.nearTaxi && !f.inMall) || (f.nearTaxi && b.nearTaxi) || (f.inMall && b.inMall))
     .filter((b) => !f.openNow || openStatus(b.hours, now).open)
     .sort((a, b) => a.distanceKm - b.distanceKm);

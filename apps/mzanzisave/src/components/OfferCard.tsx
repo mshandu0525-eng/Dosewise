@@ -1,4 +1,4 @@
-import { Bell, BellRing, Plus, Share2, Check, CreditCard, MapPin, Clock } from 'lucide-react';
+import { Bell, BellRing, Plus, Share2, Check, CreditCard, MapPin, Clock, Zap } from 'lucide-react';
 import type { Offer } from '../data/prices';
 import { priceOf } from '../data/prices';
 import { productTitle } from '../data/products';
@@ -8,6 +8,7 @@ import { openStatus, type NearbyBranch } from '../data/branches';
 import { useApp } from '../lib/state';
 import { dealText, whatsappUrl } from '../lib/share';
 import { StorePill, Thumb, useToast } from './ui';
+import { PreferredStar } from './MyStores';
 
 export function BestValueBadge({ unit }: { unit: string }) {
   return (
@@ -47,6 +48,7 @@ export function OfferCard({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <StorePill retailerId={branch.retailerId} label={branch.retailerId === 'local' ? branch.name : undefined} size="xs" />
+          <PreferredStar retailerId={branch.retailerId} />
           {branch.distanceKm !== undefined && (
             <span className="inline-flex items-center gap-0.5 text-[11px] text-muted">
               <MapPin size={11} /> {branch.distanceKm.toFixed(1)} km
@@ -72,6 +74,11 @@ export function OfferCard({
           {best && <BestValueBadge unit={unitWord} />}
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          {offer.hourly && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-tag px-1.5 py-0.5 text-[11px] font-bold text-ink">
+              <Zap size={11} /> Hourly deal
+            </span>
+          )}
           <ExpiryChip validTo={offer.validTo} today={today} />
           {offer.loyalty && (
             <span className="inline-flex items-center gap-1 rounded-md bg-paper px-1.5 py-0.5 text-[11px] font-semibold text-muted">
@@ -122,7 +129,7 @@ export function LastChanceCard({ offer, today, onOpen }: { offer: Offer; today: 
       <div className="flex items-center justify-between gap-1">
         <StorePill retailerId={offer.branch.retailerId} label={offer.branch.retailerId === 'local' ? 'Local' : undefined} size="xs" />
         <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-extrabold uppercase ${left <= 0 ? 'bg-hot text-white' : 'bg-warn-soft text-warn'}`}>
-          {left <= 0 ? 'Today' : 'Tomorrow'}
+          {offer.hourly ? 'This hour' : left <= 0 ? 'Today' : 'Tomorrow'}
         </span>
       </div>
       <p className="line-clamp-2 min-h-[2.5em] text-[13px] font-semibold leading-tight">

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Search, Flame, BellRing, Users, X } from 'lucide-react';
+import { Search, Flame, BellRing, Users, X, Zap } from 'lucide-react';
+import { MyStoresBar, PriceStatus } from '../components/MyStores';
 import { useArea } from '../lib/useArea';
 import { useApp } from '../lib/state';
 import { CATEGORIES, GROUP_LABELS, STAPLE_PILLS, productTitle, searchText, type Category } from '../data/products';
@@ -38,9 +39,9 @@ export function isBestValue(o: Offer, best: Map<string, number>): boolean {
   return b !== undefined && unitOf(o) <= b + 0.005;
 }
 
-export function Deals({ onAlert, fired, onDismissFired }: { onAlert: (id: string) => void; fired: FiredAlert[]; onDismissFired: () => void }) {
+export function Deals({ onAlert, fired, onDismissFired, onEditStores }: { onAlert: (id: string) => void; fired: FiredAlert[]; onDismissFired: () => void; onEditStores: () => void }) {
   const { state } = useApp();
-  const { branches, today, now, label, city } = useArea();
+  const { branches, today, now, label, city, myStoresOnly } = useArea();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>({ kind: 'all' });
   const [sort, setSort] = useState<Sort>('saving');
@@ -55,10 +56,15 @@ export function Deals({ onAlert, fired, onDismissFired }: { onAlert: (id: string
   const lastChance = useMemo(
     () =>
       specials
-        .filter((o) => o.validTo !== undefined && o.validTo - today <= 1)
+        .filter((o) => !o.hourly && o.validTo !== undefined && o.validTo - today <= 1)
         .sort((a, b) => (a.validTo! - b.validTo!) || (b.regular - priceOf(b)) - (a.regular - priceOf(a)))
         .slice(0, 12),
     [specials, today],
+  );
+
+  const hourly = useMemo(
+    () => specials.filter((o) => o.hourly).sort((a, b) => (b.regular - priceOf(b)) - (a.regular - priceOf(a))).slice(0, 12),
+    [specials],
   );
 
   const shown = useMemo(() => {
@@ -105,6 +111,9 @@ export function Deals({ onAlert, fired, onDismissFired }: { onAlert: (id: string
         </section>
       )}
 
+      <PriceStatus />
+      <MyStoresBar onEdit={onEditStores} />
+
       <div className="relative">
         <Search className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted" size={20} />
         <input
@@ -133,6 +142,22 @@ export function Deals({ onAlert, fired, onDismissFired }: { onAlert: (id: string
           </Pill>
         ))}
       </div>
+
+      {browsing && hourly.length > 0 && (
+        <section>
+          <div className="mb-2 flex items-end justify-between">
+            <h2 className="display flex items-center gap-1.5 text-lg font-extrabold">
+              <Zap className="text-warn" size={20} /> New this hour
+            </h2>
+            <span className="text-xs font-semibold text-muted">Ends tonight · {hourly.length} deals</span>
+          </div>
+          <div className="-mx-4 flex snap-x gap-2.5 overflow-x-auto px-4 pb-1 no-scrollbar" style={{ scrollPaddingInline: 16 }}>
+            {hourly.map((o) => (
+              <LastChanceCard key={`${o.branch.id}-${o.product.id}`} offer={o} today={today} onOpen={() => setFocus(o)} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {browsing && lastChance.length > 0 && (
         <section>
@@ -192,8 +217,8 @@ export function Deals({ onAlert, fired, onDismissFired }: { onAlert: (id: string
           </select>
         </div>
         {stores.length === 0 ? (
-          <Empty icon={<Search size={28} />} title="No stores in range">
-            Try a bigger radius or switch off the quick filters for {label}.
+          <Empty icon={<Search size={28} />} title={myStoresOnly ? 'None of your stores are in range' : 'No stores in range'}>
+            {myStoresOnly ? 'Switch off "My stores only", star more stores, or try a bigger radius.' : `Try a bigger radius or switch off the quick filters for ${label}.`}
           </Empty>
         ) : shown.length === 0 ? (
           <Empty icon={<Search size={28} />} title="No specials match">

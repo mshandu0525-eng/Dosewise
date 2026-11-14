@@ -49,6 +49,8 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   if (url.origin !== self.location.origin) return;
+  // Live prices: always ask the network; the app keeps its own copy for offline use.
+  if (url.pathname.includes('/api/')) return;
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).catch(() => caches.match('./', { ignoreVary: true })));
     return;
@@ -65,11 +67,27 @@ self.addEventListener('notificationclick', (e) => {
   };
 }
 
+/** Serves /api/prices in `npm run dev`, the same feed the Cloudflare Worker serves. */
+function devPriceFeed(): Plugin {
+  return {
+    name: 'mzanzisave-dev-feed',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!(req as { url?: string }).url?.split('?')[0].endsWith('/api/prices')) return next();
+        const { buildFeed } = await server.ssrLoadModule('/src/lib/feed.ts');
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify(buildFeed()));
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const artifact = mode === 'artifact';
   return {
     base: './',
-    plugins: [react(), tailwindcss(), ...(artifact ? [viteSingleFile()] : [serviceWorker()])],
+    plugins: [react(), tailwindcss(), devPriceFeed(), ...(artifact ? [viteSingleFile()] : [serviceWorker()])],
     build: {
       outDir: artifact ? 'dist-artifact' : 'dist',
       copyPublicDir: !artifact,

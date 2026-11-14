@@ -62,6 +62,10 @@ export interface AppState {
   loyalty: LoyaltyCard[];
   savings: SavingEntry[];
   community: CommunityDeal[];
+  /** Retailers the shopper prefers (retailer ids). */
+  preferredStores: string[];
+  /** Show only preferred stores everywhere. */
+  myStoresOnly: boolean;
   seenIntro: boolean;
 }
 
@@ -90,6 +94,8 @@ function initial(): AppState {
     loyalty: [],
     savings: [],
     community: [],
+    preferredStores: [],
+    myStoresOnly: false,
     seenIntro: false,
   };
 }
@@ -125,6 +131,8 @@ type Action =
   | { type: 'saving'; entry: Omit<SavingEntry, 'id' | 'at' | 'month'> }
   | { type: 'communityAdd'; deal: CommunityDeal }
   | { type: 'communityRemove'; id: string }
+  | { type: 'togglePreferred'; retailerId: string }
+  | { type: 'myStoresOnly'; on: boolean }
   | { type: 'seenIntro' }
   | { type: 'reset' };
 
@@ -187,6 +195,13 @@ function reducer(s: AppState, a: Action): AppState {
       return { ...s, community: [a.deal, ...s.community].slice(0, 100) };
     case 'communityRemove':
       return { ...s, community: s.community.filter((d) => d.id !== a.id) };
+    case 'togglePreferred': {
+      const has = s.preferredStores.includes(a.retailerId);
+      const preferredStores = has ? s.preferredStores.filter((x) => x !== a.retailerId) : [...s.preferredStores, a.retailerId];
+      return { ...s, preferredStores, myStoresOnly: preferredStores.length ? s.myStoresOnly : false };
+    }
+    case 'myStoresOnly':
+      return { ...s, myStoresOnly: a.on && s.preferredStores.length > 0 };
     case 'seenIntro':
       return { ...s, seenIntro: true };
     case 'reset':
