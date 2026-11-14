@@ -32,4 +32,4 @@ To install on a phone as a real app (offline, home-screen icon), host `dist/` on
 
 All prices, specials and coupons are generated sample data (`src/data/`). Specials run in stable 7- or 14-day promo cycles, so a deal keeps its dates while new ones roll in daily. Coupon barcodes are samples and won't scan at a real till; loyalty cards you add use your real card number and do scan.
 
-State (basket, coupons, cards, alerts, savings) is kept in `localStorage` on the phone. No accounts, nothing uploaded. OCR runs in the browser with Tesseract; the engine (~17 MB across CPU variants, one ~9 MB set downloaded) is fetched only on the first scan and cached.
+State (basket, coupons, cards, alerts, savings) is kept in `localStorage` on the phone. No accounts, nothing uploaded. OCR runs in the browser with Tesseract. The engine (about 8 MB: one CPU-specific core plus the English model, shipped as base64 text so any static host serves it) downloads on the first scan and is then cached.

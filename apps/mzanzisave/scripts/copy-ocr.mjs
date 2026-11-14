@@ -1,7 +1,6 @@
 // Copies the on-device OCR engine (worker, WebAssembly core in 3 CPU variants, English model) into public/ocr
 // so scanning never depends on a third-party CDN and works offline once cached.
 import { mkdirSync, copyFileSync, existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
-import { gunzipSync } from 'node:zlib';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -19,10 +18,10 @@ for (const [from, to] of files) {
   if (!existsSync(src)) throw new Error(`Missing ${from}. Run npm install.`);
   copyFileSync(src, join(out, to));
 }
-// The English model ships uncompressed: some hosts add Content-Encoding to .gz files, which
-// makes the browser unzip it before the OCR engine expects to.
+// The English model ships as base64 text of the gzipped file: every static host serves .txt
+// unchanged, while binary .gz/.traineddata files get re-encoded or refused by some hosts.
 const model = join(root, 'node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz');
 if (!existsSync(model)) throw new Error('Missing English OCR model. Run npm install.');
-writeFileSync(join(out, 'eng.traineddata'), gunzipSync(readFileSync(model)));
-rmSync(join(out, 'eng.traineddata.gz'), { force: true });
+writeFileSync(join(out, 'eng-model.b64.txt'), readFileSync(model).toString('base64'));
+for (const old of ['eng.traineddata', 'eng.traineddata.gz']) rmSync(join(out, old), { force: true });
 console.log('OCR engine copied to public/ocr');

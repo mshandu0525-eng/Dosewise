@@ -162,6 +162,39 @@ type OcrWorker = { recognize: (img: Blob | string) => Promise<{ data: { text: st
 let workerPromise: Promise<OcrWorker> | null = null;
 let progressSink: (p: number, status: string) => void = () => {};
 
+/*
+ * The OCR engine looks for its language model in IndexedDB (idb-keyval's "keyval-store")
+ * before downloading it. We put it there ourselves from a base64 text file, because some
+ * hosts won't serve or will re-encode binary .traineddata files. Downloaded once, then kept.
+ */
+const MODEL_KEY = './eng.traineddata';
+
+function idb<T>(mode: IDBTransactionMode, run: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open('keyval-store');
+    open.onupgradeneeded = () => open.result.createObjectStore('keyval');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const tx = open.result.transaction('keyval', mode);
+      const req = run(tx.objectStore('keyval'));
+      tx.oncomplete = () => resolve(req.result);
+      tx.onerror = tx.onabort = () => reject(tx.error);
+    };
+  });
+}
+
+async function ensureModelCached(base: string): Promise<void> {
+  const have = await idb('readonly', (st) => st.count(MODEL_KEY));
+  if (have) return;
+  progressSink(0, 'downloading the reader');
+  const res = await fetch(base + 'eng-model.b64.txt');
+  if (!res.ok) throw new Error(`OCR model ${res.status}`);
+  const bin = atob((await res.text()).trim());
+  const data = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) data[i] = bin.charCodeAt(i);
+  await idb('readwrite', (st) => st.put(data, MODEL_KEY));
+}
+
 /** Base URL of the OCR engine files published next to the app. */
 function ocrBase(): string {
   return new URL('./ocr/', document.baseURI).href;
@@ -173,11 +206,10 @@ export async function recognise(image: Blob, onProgress: (p: number, status: str
     workerPromise = (async () => {
       const { createWorker } = await import('tesseract.js');
       const base = ocrBase();
+      await ensureModelCached(base);
       const worker = await createWorker('eng', 1, {
         workerPath: base + 'worker.min.js',
         corePath: base,
-        langPath: base.replace(/\/$/, ''),
-        gzip: false,
         workerBlobURL: false,
         logger: (m: { status: string; progress: number }) => progressSink(m.progress, m.status),
       });
