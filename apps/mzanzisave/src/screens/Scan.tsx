@@ -9,8 +9,10 @@ import { offersFor, priceOf, unitOf, type Offer } from '../data/prices';
 import { RETAILERS, RETAILER_BY_ID } from '../data/retailers';
 import { formatUnitPrice, packLabel, zar, type PackSize } from '../lib/format';
 import { StorePill, useToast } from '../components/ui';
+import type { PriceTarget } from '../components/UpdatePriceSheet';
+import { BadgeCheck } from 'lucide-react';
 
-export function Scan() {
+export function Scan({ onSaveRealPrice }: { onSaveRealPrice: (t: PriceTarget) => void }) {
   const { state, dispatch } = useApp();
   const toast = useToast();
   const { branches, today } = useArea();
@@ -25,6 +27,8 @@ export function Scan() {
   const [sizeQty, setSizeQty] = useState('');
   const [sizeUnit, setSizeUnit] = useState<'kg' | 'L' | 'each'>('kg');
   const [store, setStore] = useState('');
+  /** Branch the tag is from: a store near you, or '' for one not listed. */
+  const [branchId, setBranchId] = useState('');
   const [storeName, setStoreName] = useState('');
 
   useEffect(() => () => { if (image) URL.revokeObjectURL(image); }, [image]);
@@ -38,6 +42,9 @@ export function Scan() {
     setSizeUnit(t.size?.unit ?? 'kg');
     setStore(t.retailerId ?? 'local');
     setStoreName('');
+    // Best guess: the nearest branch of the store named on the tag.
+    const near = distinctStores(branches);
+    setBranchId((t.retailerId ? near.find((b) => b.retailerId === t.retailerId)?.id : undefined) ?? '');
   };
 
   const onFile = async (file: File) => {
@@ -75,12 +82,16 @@ export function Scan() {
   const avgUnit = comparison.length ? comparison.reduce((s, o) => s + unitOf(o), 0) / comparison.length : null;
   const cheaperCount = scannedUnit ? comparison.filter((o) => unitOf(o) < scannedUnit - 0.005).length : 0;
 
+  const nearStores = useMemo(() => distinctStores(branches), [branches]);
+  const canSaveReal = !!match && !!branchId && priceNum > 0 && !!size && size.unit === match.size.unit && Math.abs(size.qty - match.size.qty) / match.size.qty < 0.02;
+
   const post = () => {
     if (!(priceNum > 0) || !name.trim()) return;
-    const sName = store === 'local' ? storeName.trim() || 'Local store' : RETAILER_BY_ID[store]?.name ?? 'Store';
+    const picked = nearStores.find((b) => b.id === branchId);
+    const sName = picked ? picked.name : store === 'local' ? storeName.trim() || 'Local store' : RETAILER_BY_ID[store]?.name ?? 'Store';
     dispatch({
       type: 'communityAdd',
-      deal: { id: `cd-${Date.now()}`, at: Date.now(), name: name.trim(), size, price: priceNum, wasPrice: tag?.wasPrice ?? null, storeName: sName, retailerId: store, cityId: state.area.cityId, group: match?.group ?? null },
+      deal: { id: `cd-${Date.now()}`, at: Date.now(), name: name.trim(), size, price: priceNum, wasPrice: tag?.wasPrice ?? null, storeName: sName, retailerId: picked?.retailerId ?? store, cityId: state.area.cityId, group: match?.group ?? null },
     });
     toast('Saved to your Deals feed. Share it from there.');
   };
@@ -178,12 +189,18 @@ export function Scan() {
               </div>
             </div>
           </div>
-          <label htmlFor="scan-store" className="mt-2 block text-xs font-bold text-muted uppercase">Store</label>
-          <select id="scan-store" value={store} onChange={(e) => setStore(e.target.value)} className="mt-0.5 w-full rounded-xl border border-line bg-card px-3 py-2.5 font-semibold">
-            {RETAILERS.map((r) => <option key={r.id} value={r.id}>{r.tier === 'independent' ? 'Local / independent store' : r.name}</option>)}
+          <label htmlFor="scan-branch" className="mt-2 block text-xs font-bold text-muted uppercase">Which store?</label>
+          <select id="scan-branch" value={branchId} onChange={(e) => setBranchId(e.target.value)} className="mt-0.5 w-full rounded-xl border border-line bg-card px-3 py-2.5 font-semibold">
+            <option value="">Another store (not listed)</option>
+            {nearStores.map((b) => <option key={b.id} value={b.id}>{b.name} · {b.distanceKm.toFixed(1)} km</option>)}
           </select>
-          {store === 'local' && (
-            <input id="scan-store-name" value={storeName} onChange={(e) => setStoreName(e.target.value)} placeholder="Store name, e.g. Bismillah Superette" className="mt-1.5 w-full rounded-xl border border-line px-3 py-2.5" />
+          {!branchId && (
+            <>
+              <select id="scan-store" value={store} onChange={(e) => setStore(e.target.value)} className="mt-1.5 w-full rounded-xl border border-line bg-card px-3 py-2.5" aria-label="Store chain">
+                {RETAILERS.map((r) => <option key={r.id} value={r.id}>{r.tier === 'independent' ? 'Local / independent store' : r.name}</option>)}
+              </select>
+              <input id="scan-store-name" value={storeName} onChange={(e) => setStoreName(e.target.value)} placeholder="Store name, e.g. Bismillah Superette" className="mt-1.5 w-full rounded-xl border border-line px-3 py-2.5" />
+            </>
           )}
           {scannedUnit && size && <p className="num mt-2 text-lg font-extrabold">= {formatUnitPrice(priceNum, size)}</p>}
         </section>
@@ -226,10 +243,25 @@ export function Scan() {
               </button>
             </div>
           ))}
-          <button onClick={post} className="mt-1 flex items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 font-bold text-white">
-            <Megaphone size={18} /> Add to my area's deals
-          </button>
-          <p className="text-center text-xs text-muted">Store owners: snap your own specials to list them for shoppers nearby.</p>
+          {canSaveReal ? (
+            <button
+              onClick={() => onSaveRealPrice({ productId: match!.id, branchId, price: priceNum, wasPrice: tag?.wasPrice ?? undefined })}
+              className="mt-1 flex items-center justify-center gap-2 rounded-2xl bg-save py-3.5 font-bold text-white"
+            >
+              <BadgeCheck size={18} /> Save as real price
+            </button>
+          ) : (
+            <button onClick={post} className="mt-1 flex items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 font-bold text-white">
+              <Megaphone size={18} /> Add to my area's deals
+            </button>
+          )}
+          <p className="text-center text-xs text-muted">
+            {canSaveReal
+              ? 'Replaces the estimated price at this store in deals, basket totals and alerts. Store owners: choose "I own / work here" on the next screen.'
+              : match && branchId
+                ? 'Pack size differs from the matched product, so this is listed as a spotted deal instead of replacing the price.'
+                : 'Pick a store near you and a matched product to save it as a real price.'}
+          </p>
         </section>
       )}
     </div>

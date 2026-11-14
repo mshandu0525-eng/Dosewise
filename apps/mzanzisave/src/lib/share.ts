@@ -1,6 +1,7 @@
 import { zar, packLabel, formatUnitPrice, percentOff } from './format';
 import { productTitle } from '../data/products';
 import { formatDay } from './date';
+import { ageLabel } from './reports';
 import type { Offer } from '../data/prices';
 import type { SplitPlan, StorePlan } from './basket';
 import { PRODUCT_BY_ID } from '../data/products';
@@ -19,6 +20,7 @@ export function dealText(o: Offer, today: number): string {
     `Works out to ${formatUnitPrice(price, o.product.size)}`,
   ];
   if (o.loyalty) lines.push(`💳 ${o.loyalty} card price`);
+  if (o.reported) lines.push(o.reported.source === 'store' ? '🏪 Price confirmed by the store' : `✅ Real shelf price, checked ${ageLabel(o.reported.at)}`);
   if (o.validTo !== undefined) lines.push(o.validTo <= today + 1 ? `⏰ Ends ${o.validTo === today ? 'TODAY' : 'tomorrow'}!` : `📅 Valid until ${formatDay(o.validTo)}`);
   lines.push('', '_Found on MzanziSave: compare SA grocery specials_');
   return lines.join('\n');

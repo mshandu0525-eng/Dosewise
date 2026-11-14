@@ -4,6 +4,7 @@ import type { Branch } from './branches';
 import { between, hash } from '../lib/random';
 import { unitPrice } from '../lib/format';
 import { activeFeedVersion, hourlyDeal } from '../lib/feed';
+import { reportFor, reportsVersion, type PriceReport } from '../lib/reports';
 
 export interface Offer {
   product: Product;
@@ -18,6 +19,8 @@ export interface Offer {
   loyalty?: string;
   /** Came in with this hour's price update; ends tonight. */
   hourly?: boolean;
+  /** A real price reported by a shopper or the store, replacing the sample price. */
+  reported?: PriceReport;
 }
 
 export const priceOf = (o: Offer) => o.special ?? o.regular;
@@ -47,7 +50,7 @@ const cache = new Map<string, Offer | null>();
  * so a deal keeps the same dates every time it is looked at, and new deals roll in daily.
  */
 export function getOffer(p: Product, branch: Branch, today: number): Offer | null {
-  const key = `${branch.priceScope}|${branch.id}|${p.id}|${today}|${activeFeedVersion()}`;
+  const key = `${branch.priceScope}|${branch.id}|${p.id}|${today}|${activeFeedVersion()}|${reportsVersion()}`;
   const hit = cache.get(key);
   if (hit !== undefined) return hit;
   let offer: Offer | null = null;
@@ -86,6 +89,20 @@ export function getOffer(p: Product, branch: Branch, today: number): Offer | nul
         offer.hourly = true;
       }
     }
+  }
+  // A real reported price replaces the sample price (and makes the product stocked there).
+  const rep = reportFor(branch.priceScope, p.id);
+  if (rep && (rep.validTo === undefined || rep.validTo >= today)) {
+    const onSpecial = rep.wasPrice !== undefined && rep.wasPrice > rep.price;
+    offer = {
+      product: p,
+      branch,
+      regular: onSpecial ? rep.wasPrice! : rep.price,
+      special: onSpecial ? rep.price : undefined,
+      validFrom: onSpecial ? Math.floor((rep.at + 7_200_000) / 86_400_000) : undefined,
+      validTo: onSpecial ? rep.validTo : undefined,
+      reported: rep,
+    };
   }
   if (cache.size > 20000) cache.clear();
   cache.set(key, offer);

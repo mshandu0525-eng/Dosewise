@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Search, Flame, BellRing, Users, X, Zap } from 'lucide-react';
+import { Search, Flame, BellRing, Users, X, Zap, BadgeCheck } from 'lucide-react';
 import { MyStoresBar, PriceStatus } from '../components/MyStores';
 import { useArea } from '../lib/useArea';
 import { useApp } from '../lib/state';
@@ -17,7 +17,7 @@ import type { FiredAlert } from '../lib/alerts';
 
 type Filter = { kind: 'all' } | { kind: 'group'; id: string } | { kind: 'category'; id: Category };
 type Sort = 'saving' | 'unit' | 'near';
-type Tier = 'all' | 'chains' | 'local';
+type Tier = 'all' | 'chains' | 'local' | 'real';
 
 /** Lowest price per unit for each product group across the stores in range. */
 export function groupBestUnits(stores: NearbyBranch[], today: number): Map<string, number> {
@@ -39,7 +39,7 @@ export function isBestValue(o: Offer, best: Map<string, number>): boolean {
   return b !== undefined && unitOf(o) <= b + 0.005;
 }
 
-export function Deals({ onAlert, fired, onDismissFired, onEditStores }: { onAlert: (id: string) => void; fired: FiredAlert[]; onDismissFired: () => void; onEditStores: () => void }) {
+export function Deals({ onAlert, fired, onDismissFired, onEditStores, onUpdatePrice }: { onAlert: (id: string) => void; fired: FiredAlert[]; onDismissFired: () => void; onEditStores: () => void; onUpdatePrice: (o: Offer) => void }) {
   const { state } = useApp();
   const { branches, today, now, label, city, myStoresOnly } = useArea();
   const [query, setQuery] = useState('');
@@ -62,6 +62,18 @@ export function Deals({ onAlert, fired, onDismissFired, onEditStores }: { onAler
     [specials, today],
   );
 
+  // Every real reported price in range (on special or not).
+  const real = useMemo(() => {
+    const out: Offer[] = [];
+    for (const r of state.priceReports) {
+      const b = stores.find((x) => x.priceScope === r.scope);
+      const p = PRODUCTS.find((x) => x.id === r.productId);
+      const o = b && p ? getOffer(p, b, today) : null;
+      if (o?.reported) out.push(o);
+    }
+    return out;
+  }, [state.priceReports, stores, today]);
+
   const hourly = useMemo(
     () => specials.filter((o) => o.hourly).sort((a, b) => (b.regular - priceOf(b)) - (a.regular - priceOf(a))).slice(0, 12),
     [specials],
@@ -69,7 +81,7 @@ export function Deals({ onAlert, fired, onDismissFired, onEditStores }: { onAler
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let list = specials.filter((o) => {
+    let list = (tier === 'real' ? real : specials).filter((o) => {
       const r = RETAILER_BY_ID[o.branch.retailerId];
       if (tier === 'chains' && r.tier !== 'national') return false;
       if (tier === 'local' && r.tier === 'national') return false;
@@ -82,7 +94,7 @@ export function Deals({ onAlert, fired, onDismissFired, onEditStores }: { onAler
     if (sort === 'unit') list = list.sort((a, b) => a.product.group.localeCompare(b.product.group) || unitOf(a) - unitOf(b));
     if (sort === 'near') list = list.sort((a, b) => (a.branch as NearbyBranch).distanceKm - (b.branch as NearbyBranch).distanceKm);
     return list;
-  }, [specials, query, filter, sort, tier]);
+  }, [specials, real, query, filter, sort, tier]);
 
   const community = state.community.filter((d) => d.cityId === state.area.cityId);
   const browsing = filter.kind === 'all' && !query;
@@ -143,6 +155,12 @@ export function Deals({ onAlert, fired, onDismissFired, onEditStores }: { onAler
         ))}
       </div>
 
+      {browsing && real.length > 0 && tier !== 'real' && (
+        <button onClick={() => setTier('real')} className="flex items-center gap-2 rounded-2xl border border-save bg-save-soft px-3 py-2.5 text-left text-sm font-semibold text-save">
+          <BadgeCheck size={18} /> {real.length} real price{real.length > 1 ? 's' : ''} near you, checked by shoppers and stores
+        </button>
+      )}
+
       {browsing && hourly.length > 0 && (
         <section>
           <div className="mb-2 flex items-end justify-between">
@@ -200,7 +218,7 @@ export function Deals({ onAlert, fired, onDismissFired, onEditStores }: { onAler
       <section>
         <div className="mb-2 flex items-end justify-between gap-2">
           <h2 className="display text-lg font-extrabold">
-            {filter.kind === 'group' ? `${GROUP_LABELS[filter.id]} specials` : filter.kind === 'category' ? `${CATEGORIES.find((c) => c.id === filter.id)?.label} specials` : 'Specials near you'}
+            {tier === 'real' ? 'Real prices near you' : filter.kind === 'group' ? `${GROUP_LABELS[filter.id]} specials` : filter.kind === 'category' ? `${CATEGORIES.find((c) => c.id === filter.id)?.label} specials` : 'Specials near you'}
           </h2>
           <span className="shrink-0 text-xs text-muted">{shown.length} in {stores.length} stores</span>
         </div>
@@ -214,6 +232,7 @@ export function Deals({ onAlert, fired, onDismissFired, onEditStores }: { onAler
             <option value="all">All stores</option>
             <option value="chains">Big chains</option>
             <option value="local">Regional & local</option>
+            <option value="real">Real prices only ({real.length})</option>
           </select>
         </div>
         {stores.length === 0 ? (
@@ -227,7 +246,7 @@ export function Deals({ onAlert, fired, onDismissFired, onEditStores }: { onAler
         ) : (
           <div className="flex flex-col gap-2.5">
             {shown.slice(0, limit).map((o) => (
-              <OfferCard key={`${o.branch.id}-${o.product.id}`} offer={o} today={today} now={now} best={isBestValue(o, best)} onAlert={onAlert} />
+              <OfferCard key={`${o.branch.id}-${o.product.id}`} offer={o} today={today} now={now} best={isBestValue(o, best)} onAlert={onAlert} onUpdatePrice={onUpdatePrice} />
             ))}
             {shown.length > limit && (
               <button onClick={() => setLimit((l) => l + 30)} className="rounded-2xl border border-line bg-card py-3.5 font-semibold">
@@ -245,7 +264,7 @@ export function Deals({ onAlert, fired, onDismissFired, onEditStores }: { onAler
               <StorePill retailerId={focus.branch.retailerId} />
               <span className="text-sm text-muted">{focus.branch.name}</span>
             </div>
-            <OfferCard offer={focus} today={today} now={now} best={isBestValue(focus, best)} onAlert={onAlert} />
+            <OfferCard offer={focus} today={today} now={now} best={isBestValue(focus, best)} onAlert={onAlert} onUpdatePrice={(o) => { setFocus(null); onUpdatePrice(o); }} />
           </>
         )}
       </Sheet>

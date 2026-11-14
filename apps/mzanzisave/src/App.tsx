@@ -5,6 +5,8 @@ import { LocationSheet } from './components/LocationSheet';
 import { SettingsSheet } from './components/SettingsSheet';
 import { AlertSheet } from './components/AlertSheet';
 import { MyStoresSheet } from './components/MyStores';
+import { UpdatePriceSheet, type PriceTarget } from './components/UpdatePriceSheet';
+import type { Offer } from './data/prices';
 import { ToastProvider } from './components/ui';
 import { Deals } from './screens/Deals';
 import { Compare } from './screens/Compare';
@@ -33,6 +35,8 @@ function Shell() {
   const [alertFor, setAlertFor] = useState<string | null>(null);
   const [storesOpen, setStoresOpen] = useState(false);
   const editStores = useCallback(() => setStoresOpen(true), []);
+  const [priceTarget, setPriceTarget] = useState<PriceTarget | null>(null);
+  const updatePrice = useCallback((o: Offer) => setPriceTarget({ productId: o.product.id, branchId: o.branch.id }), []);
   const [fired, setFired] = useState<FiredAlert[]>([]);
 
   useEffect(() => {
@@ -76,16 +80,17 @@ function Shell() {
             </button>
           </div>
         )}
-        {tab === 'deals' && <Deals onAlert={setAlertFor} fired={fired} onDismissFired={() => setFired([])} onEditStores={editStores} />}
-        {tab === 'compare' && <Compare onAlert={setAlertFor} onEditStores={editStores} />}
+        {tab === 'deals' && <Deals onAlert={setAlertFor} fired={fired} onDismissFired={() => setFired([])} onEditStores={editStores} onUpdatePrice={updatePrice} />}
+        {tab === 'compare' && <Compare onAlert={setAlertFor} onEditStores={editStores} onUpdatePrice={updatePrice} />}
         {tab === 'coupons' && <Coupons />}
         {tab === 'basket' && <Basket onEditStores={editStores} />}
-        {tab === 'scan' && <Scan />}
+        {tab === 'scan' && <Scan onSaveRealPrice={setPriceTarget} />}
       </main>
       <BottomNav tab={tab} onTab={go} />
       <LocationSheet open={locOpen} onClose={() => setLocOpen(false)} />
       <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} onEditStores={() => { setSettingsOpen(false); setStoresOpen(true); }} />
       <MyStoresSheet open={storesOpen} onClose={() => setStoresOpen(false)} />
+      <UpdatePriceSheet target={priceTarget} onClose={() => setPriceTarget(null)} />
       <AlertSheet productId={alertFor} onClose={() => setAlertFor(null)} today={today} />
     </div>
   );

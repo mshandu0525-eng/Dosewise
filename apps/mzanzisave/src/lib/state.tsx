@@ -3,6 +3,7 @@ import type { AreaFilter } from '../data/branches';
 import type { BasketItem } from './basket';
 import type { PackSize } from './format';
 import { monthKey, todaySA } from './date';
+import { setPriceReports, type PriceReport } from './reports';
 
 export interface PriceAlert {
   productId: string;
@@ -62,6 +63,8 @@ export interface AppState {
   loyalty: LoyaltyCard[];
   savings: SavingEntry[];
   community: CommunityDeal[];
+  /** Real prices reported by the shopper or by store owners on this phone. */
+  priceReports: PriceReport[];
   /** Retailers the shopper prefers (retailer ids). */
   preferredStores: string[];
   /** Show only preferred stores everywhere. */
@@ -94,6 +97,7 @@ function initial(): AppState {
     loyalty: [],
     savings: [],
     community: [],
+    priceReports: [],
     preferredStores: [],
     myStoresOnly: false,
     seenIntro: false,
@@ -131,6 +135,8 @@ type Action =
   | { type: 'saving'; entry: Omit<SavingEntry, 'id' | 'at' | 'month'> }
   | { type: 'communityAdd'; deal: CommunityDeal }
   | { type: 'communityRemove'; id: string }
+  | { type: 'reportPrice'; report: PriceReport }
+  | { type: 'removeReport'; id: string }
   | { type: 'togglePreferred'; retailerId: string }
   | { type: 'myStoresOnly'; on: boolean }
   | { type: 'seenIntro' }
@@ -195,6 +201,14 @@ function reducer(s: AppState, a: Action): AppState {
       return { ...s, community: [a.deal, ...s.community].slice(0, 100) };
     case 'communityRemove':
       return { ...s, community: s.community.filter((d) => d.id !== a.id) };
+    case 'reportPrice':
+      return {
+        ...s,
+        // One report per product per store from this phone: the new one replaces the old.
+        priceReports: [a.report, ...s.priceReports.filter((r) => !(r.scope === a.report.scope && r.productId === a.report.productId))].slice(0, 500),
+      };
+    case 'removeReport':
+      return { ...s, priceReports: s.priceReports.filter((r) => r.id !== a.id) };
     case 'togglePreferred': {
       const has = s.preferredStores.includes(a.retailerId);
       const preferredStores = has ? s.preferredStores.filter((x) => x !== a.retailerId) : [...s.preferredStores, a.retailerId];
@@ -220,6 +234,8 @@ const AppContext = createContext<Ctx | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, rawDispatch] = useReducer(reducer, undefined, load);
+  // Keep the price engine's real-price overlay in step with saved reports, before children render.
+  setPriceReports(state.priceReports);
   const dispatch = useCallback((a: Action) => rawDispatch(a), []);
   useEffect(() => {
     try {

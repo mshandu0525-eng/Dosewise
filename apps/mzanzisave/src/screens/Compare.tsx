@@ -6,7 +6,8 @@ import { CATEGORIES, GROUP_LABELS, PRODUCTS, productTitle, searchText } from '..
 import { offersFor, priceOf, unitOf } from '../data/prices';
 import { distinctStores } from '../lib/basket';
 import { formatUnitPrice, packLabel, percentOff, zar, unitLabel, type PackSize } from '../lib/format';
-import { BestValueBadge, ExpiryChip } from '../components/OfferCard';
+import { BestValueBadge, ExpiryChip, RealPriceBadge, UpdatePriceLink } from '../components/OfferCard';
+import type { Offer } from '../data/prices';
 import { Empty, Pill, StorePill, useToast } from '../components/ui';
 import type { NearbyBranch } from '../data/branches';
 import { MyStoresBar, PreferredStar } from '../components/MyStores';
@@ -67,7 +68,7 @@ function PackCalculator() {
   );
 }
 
-export function Compare({ onAlert, onEditStores }: { onAlert: (id: string) => void; onEditStores: () => void }) {
+export function Compare({ onAlert, onEditStores, onUpdatePrice }: { onAlert: (id: string) => void; onEditStores: () => void; onUpdatePrice: (o: Offer) => void }) {
   const { state, dispatch } = useApp();
   const toast = useToast();
   const { branches, today, city } = useArea();
@@ -186,7 +187,9 @@ export function Compare({ onAlert, onEditStores }: { onAlert: (id: string) => vo
                           </div>
                           <div className="mt-1.5 flex flex-wrap gap-1.5">
                             {i === 0 && <BestValueBadge unit={unitLabel(p.size)} />}
+                            <RealPriceBadge offer={o} />
                             <ExpiryChip validTo={o.validTo} today={today} />
+                            <UpdatePriceLink onClick={() => onUpdatePrice(o)} />
                           </div>
                         </div>
                         <div className="flex shrink-0 flex-col gap-1.5">

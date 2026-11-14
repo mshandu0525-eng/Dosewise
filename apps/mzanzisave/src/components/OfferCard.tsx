@@ -1,4 +1,5 @@
-import { Bell, BellRing, Plus, Share2, Check, CreditCard, MapPin, Clock, Zap } from 'lucide-react';
+import { Bell, BellRing, Plus, Share2, Check, CreditCard, MapPin, Clock, Zap, BadgeCheck, Store, PencilLine } from 'lucide-react';
+import { ageLabel } from '../lib/reports';
 import type { Offer } from '../data/prices';
 import { priceOf } from '../data/prices';
 import { productTitle } from '../data/products';
@@ -29,9 +30,29 @@ export function ExpiryChip({ validTo, today }: { validTo?: number; today: number
   );
 }
 
+/** "Real price · you, 2 h ago" or "From the store · today". */
+export function RealPriceBadge({ offer }: { offer: Offer }) {
+  const r = offer.reported;
+  if (!r) return null;
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md bg-save-soft px-1.5 py-0.5 text-[11px] font-bold text-save">
+      {r.source === 'store' ? <Store size={11} /> : <BadgeCheck size={11} />}
+      {r.source === 'store' ? 'From the store' : 'Real price'} · {ageLabel(r.at)}
+    </span>
+  );
+}
+
+export function UpdatePriceLink({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-[12px] font-semibold text-muted underline decoration-dotted underline-offset-2">
+      <PencilLine size={12} /> Update price
+    </button>
+  );
+}
+
 export function OfferCard({
-  offer, today, best, onAlert, now,
-}: { offer: Offer; today: number; best: boolean; onAlert: (productId: string) => void; now: number }) {
+  offer, today, best, onAlert, now, onUpdatePrice,
+}: { offer: Offer; today: number; best: boolean; onAlert: (productId: string) => void; now: number; onUpdatePrice?: (o: Offer) => void }) {
   const { state, dispatch } = useApp();
   const toast = useToast();
   const p = offer.product;
@@ -74,6 +95,7 @@ export function OfferCard({
           {best && <BestValueBadge unit={unitWord} />}
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <RealPriceBadge offer={offer} />
           {offer.hourly && (
             <span className="inline-flex items-center gap-1 rounded-md bg-tag px-1.5 py-0.5 text-[11px] font-bold text-ink">
               <Zap size={11} /> Hourly deal
@@ -85,6 +107,7 @@ export function OfferCard({
               <CreditCard size={11} /> {offer.loyalty} price
             </span>
           )}
+          {onUpdatePrice && <UpdatePriceLink onClick={() => onUpdatePrice(offer)} />}
         </div>
       </div>
       <div className="flex shrink-0 flex-col items-center gap-1.5">
