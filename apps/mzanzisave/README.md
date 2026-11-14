@@ -4,7 +4,9 @@ Proof-of-concept PWA that compares grocery specials across South African superma
 
 ## Install on your phone
 
-Open https://mshandu0525-eng.github.io/Dosewise/ in Chrome, then menu ⋮ → **Install app** (or **Add to Home screen**). It deploys automatically from `.github/workflows/mzanzisave-pages.yml` on every push that touches `apps/mzanzisave`.
+Open **https://mzanzisave.mshandu0525.workers.dev** in Chrome, then menu ⋮ → **Install app** (or **Add to Home screen**).
+
+It is hosted on Cloudflare Workers. To redeploy: `npm run build && CLOUDFLARE_API_TOKEN=... node scripts/deploy-kv.mjs` (behind an HTTPS proxy add `NODE_USE_ENV_PROXY=1`) (serves `dist/` from Workers KV via `cloudflare/kv-worker.js`). `wrangler.jsonc` is also set up for a normal `npx wrangler deploy` with static assets, and `.github/workflows/mzanzisave-pages.yml` deploys to GitHub Pages once Pages is enabled on the repo.
 
 ## Run it
 
