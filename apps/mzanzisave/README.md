@@ -2,6 +2,10 @@
 
 Proof-of-concept PWA that compares grocery specials across South African supermarkets (big chains and regional/independent stores), bundles coupons and loyalty cards, and works offline. Not part of the DoseWise npm workspace; it has its own `package.json`.
 
+## Install on your phone
+
+Open https://mshandu0525-eng.github.io/Dosewise/ in Chrome, then menu ⋮ → **Install app** (or **Add to Home screen**). It deploys automatically from `.github/workflows/mzanzisave-pages.yml` on every push that touches `apps/mzanzisave`.
+
 ## Run it
 
 ```bash
