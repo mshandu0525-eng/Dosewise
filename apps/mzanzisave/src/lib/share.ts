@@ -3,7 +3,7 @@ import { productTitle } from '../data/products';
 import { formatDay } from './date';
 import { ageLabel } from './reports';
 import type { Offer } from '../data/prices';
-import type { SplitPlan, StorePlan } from './basket';
+import { travelLabel, type RankedStore, type SplitResult, type TravelSettings } from './final';
 import { PRODUCT_BY_ID } from '../data/products';
 import type { BasketItem } from './basket';
 
@@ -26,7 +26,7 @@ export function dealText(o: Offer, today: number): string {
   return lines.join('\n');
 }
 
-export function basketText(items: BasketItem[], area: string, best: StorePlan | undefined, split: SplitPlan | null, travel: number): string {
+export function basketText(items: BasketItem[], area: string, best: RankedStore | undefined, split: SplitResult | null, travel: TravelSettings): string {
   const lines = [`🛒 *My MzanziSave basket* (${items.reduce((s, i) => s + i.qty, 0)} items)`, `📍 ${area}`, ''];
   items.forEach((i, n) => {
     const p = PRODUCT_BY_ID[i.productId];
@@ -34,16 +34,17 @@ export function basketText(items: BasketItem[], area: string, best: StorePlan | 
   });
   lines.push('');
   if (best) {
-    lines.push(`💰 *Cheapest one-stop shop:* ${best.branch.name}: *${zar(best.total)}*`);
-    if (best.missing) lines.push(`   (${best.missing} item${best.missing > 1 ? 's' : ''} not stocked there)`);
+    lines.push(`💰 *Best plan:* ${best.plan.branch.name}`);
+    lines.push(`   Final price *${zar(best.price.final)}* (till ${zar(best.price.till)} + trip ${zar(best.price.trip)}, ${travelLabel(travel)})`);
+    if (best.price.missing) lines.push(`   (${best.price.missing} item${best.price.missing > 1 ? 's' : ''} not available there)`);
   }
   if (split?.worthIt) {
-    lines.push(`✂️ *Split & Save:* ${split.a.branch.name} + ${split.b.branch.name}: *${zar(split.total)}*`);
-    lines.push(`   Saves ${zar(split.netSaving)} after ${zar(travel)} taxi/travel`);
+    lines.push(`✂️ *Split & Save:* ${split.a.name} + ${split.b.name}: *${zar(split.price.final)}*`);
+    lines.push(`   Saves ${zar(split.netSaving)} more, after the longer trip`);
   } else if (split) {
-    lines.push(`✂️ Splitting across 2 stores isn't worth it after ${zar(travel)} travel.`);
+    lines.push('✂️ A second store isn\'t worth it after travel.');
   }
-  lines.push('', '_Compared on MzanziSave_');
+  lines.push('', '_Final prices include specials, loyalty cards, coupons and the trip. Compared on MzanziSave_');
   return lines.join('\n');
 }
 

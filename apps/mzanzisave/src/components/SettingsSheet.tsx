@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Gauge, Trash2, Bell, Star, ChevronRight } from 'lucide-react';
+import { Gauge, Trash2, Bell, Star, ChevronRight, Trophy, ShieldCheck } from 'lucide-react';
+import { APP_NAME, APP_VERSION, DEVELOPER } from '../lib/version';
 import { PriceStatus } from './MyStores';
 import { RETAILER_BY_ID } from '../data/retailers';
 import { PRODUCT_BY_ID, productTitle } from '../data/products';
@@ -36,6 +37,14 @@ export function SettingsSheet({ open, onClose, onEditStores }: { open: boolean; 
           ))}
         </ul>
       )}
+
+      <div className="mt-3 flex items-center gap-3 rounded-2xl border border-line p-3">
+        <Trophy className="shrink-0 text-[#f59e0b]" />
+        <span className="flex-1">
+          <span className="block font-semibold">Checker points: <span className="num">{state.points}</span></span>
+          <span className="block text-xs text-muted">{state.checks} price{state.checks === 1 ? '' : 's'} checked. +10 for a real price, +5 for an out-of-stock report or a checked till slip.</span>
+        </span>
+      </div>
 
       <button onClick={onEditStores} className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-line p-3 text-left">
         <Star className="shrink-0 text-[#f59e0b]" />
@@ -122,10 +131,21 @@ export function SettingsSheet({ open, onClose, onEditStores }: { open: boolean; 
         )}
       </div>
 
+      <div className="mt-3 rounded-2xl border border-save bg-save-soft p-3 text-sm">
+        <p className="flex items-center gap-1.5 font-semibold text-save"><ShieldCheck size={16} /> How we rank prices</p>
+        <ul className="mt-1 list-disc space-y-0.5 pl-5 text-ink">
+          <li>Cheapest final price first: specials, your loyalty cards, your coupons and the trip, all counted.</li>
+          <li>No ads and no paid placement. No store or brand can pay to rank higher.</li>
+          <li>Every price says whether it's an estimate or was checked on the shelf, and when.</li>
+        </ul>
+      </div>
+
       <div className="mt-3 rounded-2xl border border-line p-3 text-sm text-muted">
         <p className="font-semibold text-ink">Works offline</p>
         <p className="mt-1">Your basket, clipped coupons and loyalty cards are saved on this phone only. No sign-up, nothing is uploaded. Prices are sample data for this proof of concept.</p>
       </div>
+
+      <p className="mt-3 text-center text-xs text-muted">{APP_NAME} · version {APP_VERSION} · {DEVELOPER}</p>
 
       {!confirm ? (
         <button onClick={() => setConfirm(true)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-line py-3 font-semibold text-hot">

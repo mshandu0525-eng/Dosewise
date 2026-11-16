@@ -1,6 +1,18 @@
-# MzanziSave
+# V2 MzanziSave
 
 Proof-of-concept PWA that compares grocery specials across South African supermarkets (big chains and regional/independent stores), bundles coupons and loyalty cards, and works offline. Not part of the DoseWise npm workspace; it has its own `package.json`.
+
+## What's new in V2
+
+Built from the recommendations in the November 2026 review of South African grocery-savings apps:
+
+- **Real final price** per store (`src/lib/final.ts`): shelf price − specials − loyalty-card prices (only for cards in your wallet) − clipped coupons + the trip. Stores rank by that number.
+- **Trip cost from real distance**: car (R/km), taxi (fare per trip, free under 1.5 km) or walking. One store is recommended first; a second stop only when it saves over R10 and over 1% after the longer trip.
+- **Price freshness and stock flags**: every price says "Estimate" or "Checked 2 h ago"; one-tap "Wrong price?" and "Out of stock?" (out-of-stock items count as unavailable for 3 days). Checker points reward reports.
+- **Till-slip check** (`src/lib/slip.ts`): snap the slip at the till; it says exactly what's wrong (blurry, no total, old date, no store) so you can re-snap, logs your real spend, and marks matched coupons used.
+- **Honest coverage**: how many prices near you were really checked, and that the rest are estimates.
+- **Trust**: cheapest final price first, no ads, no paid placement; version and developer shown in Settings.
+- **Lighter first load**: Compare, Coupons and Scan load on first open (main bundle 115 KB gzipped).
 
 ## Install on your phone
 

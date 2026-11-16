@@ -1,4 +1,7 @@
-import { Star, RefreshCw, WifiOff, Pencil } from 'lucide-react';
+import { Star, RefreshCw, WifiOff, Pencil, ShieldCheck } from 'lucide-react';
+import { useArea } from '../lib/useArea';
+import { distinctStores } from '../lib/basket';
+import { REPORT_MAX_AGE_DAYS } from '../lib/reports';
 import { RETAILERS, RETAILER_BY_ID } from '../data/retailers';
 import { CITY_BY_ID } from '../data/locations';
 import { useApp } from '../lib/state';
@@ -123,5 +126,25 @@ export function PriceStatus() {
         <RefreshCw size={13} className={status === 'checking' ? 'animate-spin' : ''} /> Refresh
       </button>
     </div>
+  );
+}
+
+/** Honest coverage: how many prices near you were really checked, and that the rest are estimates. */
+export function CoverageLine() {
+  const { state } = useApp();
+  const { branches } = useArea();
+  const stores = distinctStores(branches);
+  const scopes = new Set(stores.map((b) => b.priceScope));
+  const fresh = state.priceReports.filter((r) => scopes.has(r.scope) && Date.now() - r.at <= REPORT_MAX_AGE_DAYS * 86_400_000);
+  const storesChecked = new Set(fresh.map((r) => r.scope)).size;
+  return (
+    <p className="flex items-start gap-2 rounded-xl bg-card px-3 py-2 text-xs text-muted">
+      <ShieldCheck size={14} className="mt-0.5 shrink-0 text-save" />
+      <span>
+        {fresh.length
+          ? <><b className="text-ink">{fresh.length} real price{fresh.length > 1 ? 's' : ''}</b> checked in the last {REPORT_MAX_AGE_DAYS} days at {storesChecked} of {stores.length} stores near you (on this phone). Everything else is an estimate.</>
+          : <>No prices checked near you yet, so all prices are <b className="text-ink">estimates</b>. Tap "Wrong price?" or scan a shelf tag to check one.</>}
+      </span>
+    </p>
   );
 }

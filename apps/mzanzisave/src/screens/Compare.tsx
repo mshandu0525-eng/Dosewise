@@ -6,7 +6,7 @@ import { CATEGORIES, GROUP_LABELS, PRODUCTS, productTitle, searchText } from '..
 import { offersFor, priceOf, unitOf } from '../data/prices';
 import { distinctStores } from '../lib/basket';
 import { formatUnitPrice, packLabel, percentOff, zar, unitLabel, type PackSize } from '../lib/format';
-import { BestValueBadge, ExpiryChip, RealPriceBadge, UpdatePriceLink } from '../components/OfferCard';
+import { BestValueBadge, ExpiryChip, RealPriceBadge, StockButton, StockChip, UpdatePriceLink } from '../components/OfferCard';
 import type { Offer } from '../data/prices';
 import { Empty, Pill, StorePill, useToast } from '../components/ui';
 import type { NearbyBranch } from '../data/branches';
@@ -189,7 +189,9 @@ export function Compare({ onAlert, onEditStores, onUpdatePrice }: { onAlert: (id
                             {i === 0 && <BestValueBadge unit={unitLabel(p.size)} />}
                             <RealPriceBadge offer={o} />
                             <ExpiryChip validTo={o.validTo} today={today} />
+                            <StockChip offer={o} />
                             <UpdatePriceLink onClick={() => onUpdatePrice(o)} />
+                            <StockButton offer={o} />
                           </div>
                         </div>
                         <div className="flex shrink-0 flex-col gap-1.5">

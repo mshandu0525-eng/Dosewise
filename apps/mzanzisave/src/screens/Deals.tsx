@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Search, Flame, BellRing, Users, X, Zap, BadgeCheck } from 'lucide-react';
-import { MyStoresBar, PriceStatus } from '../components/MyStores';
+import { CoverageLine, MyStoresBar, PriceStatus } from '../components/MyStores';
 import { useArea } from '../lib/useArea';
 import { useApp } from '../lib/state';
 import { CATEGORIES, GROUP_LABELS, STAPLE_PILLS, productTitle, searchText, type Category } from '../data/products';
@@ -124,6 +124,7 @@ export function Deals({ onAlert, fired, onDismissFired, onEditStores, onUpdatePr
       )}
 
       <PriceStatus />
+      <CoverageLine />
       <MyStoresBar onEdit={onEditStores} />
 
       <div className="relative">

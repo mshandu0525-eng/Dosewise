@@ -5,6 +5,7 @@ import { between, hash } from '../lib/random';
 import { unitPrice } from '../lib/format';
 import { activeFeedVersion, hourlyDeal } from '../lib/feed';
 import { reportFor, reportsVersion, type PriceReport } from '../lib/reports';
+import { stockFlag, stockVersion, type StockFlag } from '../lib/stock';
 
 export interface Offer {
   product: Product;
@@ -21,6 +22,8 @@ export interface Offer {
   hourly?: boolean;
   /** A real price reported by a shopper or the store, replacing the sample price. */
   reported?: PriceReport;
+  /** Someone reported it out of stock here in the last few days. */
+  outOfStock?: StockFlag;
 }
 
 export const priceOf = (o: Offer) => o.special ?? o.regular;
@@ -50,7 +53,7 @@ const cache = new Map<string, Offer | null>();
  * so a deal keeps the same dates every time it is looked at, and new deals roll in daily.
  */
 export function getOffer(p: Product, branch: Branch, today: number): Offer | null {
-  const key = `${branch.priceScope}|${branch.id}|${p.id}|${today}|${activeFeedVersion()}|${reportsVersion()}`;
+  const key = `${branch.priceScope}|${branch.id}|${p.id}|${today}|${activeFeedVersion()}|${reportsVersion()}|${stockVersion()}`;
   const hit = cache.get(key);
   if (hit !== undefined) return hit;
   let offer: Offer | null = null;
@@ -103,6 +106,11 @@ export function getOffer(p: Product, branch: Branch, today: number): Offer | nul
       validTo: onSpecial ? rep.validTo : undefined,
       reported: rep,
     };
+  }
+  if (offer) {
+    const flag = stockFlag(branch.priceScope, p.id);
+    // A real price reported after the stock-out means it is back on the shelf.
+    if (flag && !(offer.reported && offer.reported.at > flag.at)) offer = { ...offer, outOfStock: flag };
   }
   if (cache.size > 20000) cache.clear();
   cache.set(key, offer);

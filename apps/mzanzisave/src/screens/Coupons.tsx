@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Scissors, Check, Ticket, Users, Minus, Plus, CreditCard, Trash2, ScanBarcode, Factory, Store, Package, WifiOff } from 'lucide-react';
 import { COUPONS, couponCodes, couponEnd, type Coupon } from '../data/coupons';
 import { PRODUCT_BY_ID, productTitle } from '../data/products';
@@ -251,11 +251,14 @@ function LoyaltyVault() {
   );
 }
 
-export function Coupons() {
+export function Coupons({ initialView, onViewShown }: { initialView?: 'cards'; onViewShown?: () => void }) {
   const { state, dispatch } = useApp();
   const toast = useToast();
   const { today } = useArea();
-  const [view, setView] = useState<View>('browse');
+  const [view, setView] = useState<View>(initialView ?? 'browse');
+  useEffect(() => {
+    if (initialView) onViewShown?.();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [redeem, setRedeem] = useState<Coupon | null>(null);
   const clippedList = useMemo(() => COUPONS.filter((c) => state.clipped[c.id]), [state.clipped]);
   const live = COUPONS.filter((c) => couponEnd(c, today) >= today);

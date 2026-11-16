@@ -93,6 +93,7 @@ export function Header({ areaLabel, radius, onLocation, onSavings }: { areaLabel
         <div className="min-w-0 flex-1">
           <p className="display text-xl leading-none font-black tracking-tight">
             Mzanzi<span className="text-save">Save</span>
+            <span className="ml-1.5 rounded-md bg-ink px-1.5 py-0.5 align-middle text-[10px] font-bold tracking-wide text-white">V2</span>
           </p>
           <button onClick={onLocation} className="mt-1 flex max-w-full items-center gap-1 text-[13px] font-semibold text-muted" aria-label={`Change area, currently ${areaLabel}`}>
             <MapPin size={14} className="shrink-0 text-save" />

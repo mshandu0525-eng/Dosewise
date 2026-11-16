@@ -1,4 +1,4 @@
-import { Bell, BellRing, Plus, Share2, Check, CreditCard, MapPin, Clock, Zap, BadgeCheck, Store, PencilLine } from 'lucide-react';
+import { Bell, BellRing, Plus, Share2, Check, CreditCard, MapPin, Clock, Zap, BadgeCheck, Store, PencilLine, PackageX, PackageCheck } from 'lucide-react';
 import { ageLabel } from '../lib/reports';
 import type { Offer } from '../data/prices';
 import { priceOf } from '../data/prices';
@@ -30,14 +30,29 @@ export function ExpiryChip({ validTo, today }: { validTo?: number; today: number
   );
 }
 
-/** "Real price · you, 2 h ago" or "From the store · today". */
+/** Where a price comes from and how fresh it is: every price shows one of these. */
 export function RealPriceBadge({ offer }: { offer: Offer }) {
   const r = offer.reported;
-  if (!r) return null;
+  if (r) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md bg-save-soft px-1.5 py-0.5 text-[11px] font-bold text-save">
+        {r.source === 'store' ? <Store size={11} /> : <BadgeCheck size={11} />}
+        {r.source === 'store' ? 'From the store' : 'Checked'} {ageLabel(r.at)}
+      </span>
+    );
+  }
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-save-soft px-1.5 py-0.5 text-[11px] font-bold text-save">
-      {r.source === 'store' ? <Store size={11} /> : <BadgeCheck size={11} />}
-      {r.source === 'store' ? 'From the store' : 'Real price'} · {ageLabel(r.at)}
+    <span className="inline-flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 text-[11px] font-semibold text-muted" title="Not yet checked on the shelf. Tap Wrong price to correct it.">
+      Estimate{offer.hourly ? ' · hourly update' : ''}
+    </span>
+  );
+}
+
+export function StockChip({ offer }: { offer: Offer }) {
+  if (!offer.outOfStock) return null;
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md bg-hot px-1.5 py-0.5 text-[11px] font-bold text-white">
+      <PackageX size={11} /> Reported out of stock {ageLabel(offer.outOfStock.at)}
     </span>
   );
 }
@@ -45,7 +60,35 @@ export function RealPriceBadge({ offer }: { offer: Offer }) {
 export function UpdatePriceLink({ onClick }: { onClick: () => void }) {
   return (
     <button onClick={onClick} className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-[12px] font-semibold text-muted underline decoration-dotted underline-offset-2">
-      <PencilLine size={12} /> Update price
+      <PencilLine size={12} /> Wrong price?
+    </button>
+  );
+}
+
+/** One tap: "Out of stock" here (or "Back in stock" to undo your own report). */
+export function StockButton({ offer }: { offer: Offer }) {
+  const { state, dispatch } = useApp();
+  const toast = useToast();
+  const mine = state.stockFlags.find((f) => f.scope === offer.branch.priceScope && f.productId === offer.product.id);
+  if (mine) {
+    return (
+      <button
+        onClick={() => { dispatch({ type: 'unflagStock', scope: mine.scope, productId: mine.productId }); toast('Marked back in stock', 'info'); }}
+        className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-[12px] font-semibold text-muted underline decoration-dotted underline-offset-2"
+      >
+        <PackageCheck size={12} /> Back in stock
+      </button>
+    );
+  }
+  return (
+    <button
+      onClick={() => {
+        dispatch({ type: 'flagStock', flag: { id: `oos-${Date.now()}`, at: Date.now(), productId: offer.product.id, scope: offer.branch.priceScope, branchId: offer.branch.id } });
+        toast('Thanks! Marked out of stock for 3 days (+5 points)');
+      }}
+      className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-[12px] font-semibold text-muted underline decoration-dotted underline-offset-2"
+    >
+      <PackageX size={12} /> Out of stock?
     </button>
   );
 }
@@ -64,7 +107,7 @@ export function OfferCard({
   const unitWord = p.size.unit === 'each' ? (p.size.countLabel ?? 'item') : p.size.unit;
 
   return (
-    <article className="flex gap-3 rounded-2xl border border-line bg-card p-3">
+    <article className={`flex gap-3 rounded-2xl border bg-card p-3 ${offer.outOfStock ? 'border-hot/40 opacity-75' : 'border-line'}`}>
       <Thumb product={p} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -107,7 +150,11 @@ export function OfferCard({
               <CreditCard size={11} /> {offer.loyalty} price
             </span>
           )}
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <StockChip offer={offer} />
           {onUpdatePrice && <UpdatePriceLink onClick={() => onUpdatePrice(offer)} />}
+          <StockButton offer={offer} />
         </div>
       </div>
       <div className="flex shrink-0 flex-col items-center gap-1.5">

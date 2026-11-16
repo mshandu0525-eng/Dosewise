@@ -1,30 +1,66 @@
 import { useMemo, useState } from 'react';
-import { Minus, Plus, Trash2, Share2, Store, Split, Bus, ChevronDown, Check, AlertTriangle, Search, PartyPopper } from 'lucide-react';
+import { Minus, Plus, Trash2, Share2, Store, Split, ChevronDown, Check, AlertTriangle, Search, PartyPopper, Car, Bus, Footprints, CreditCard, Receipt, Trophy } from 'lucide-react';
 import { useArea } from '../lib/useArea';
 import { useApp } from '../lib/state';
 import { PRODUCT_BY_ID, PRODUCTS, productTitle, searchText } from '../data/products';
-import { areaAverage, bestSplit, rankSingleStores, type StorePlan } from '../lib/basket';
 import { packLabel, zar } from '../lib/format';
 import { basketText, whatsappUrl } from '../lib/share';
-import { openStatus } from '../data/branches';
+import { openStatus, type NearbyBranch } from '../data/branches';
 import { Empty, Segmented, StorePill, Thumb, useToast } from '../components/ui';
 import { todaySA } from '../lib/date';
 import { MyStoresBar, PreferredStar } from '../components/MyStores';
+import { SlipSheet } from '../components/SlipSheet';
+import { bestSplitFinal, rankByFinal, travelLabel, unitPaid, PROGRAMME_NAMES, type FinalPrice, type PriceContext, type TravelMode } from '../lib/final';
+import type { Line } from '../lib/basket';
 
-function PlanLines({ plan }: { plan: StorePlan }) {
+type PlacedLine = Line & { branch: NearbyBranch };
+
+/** Shelf price → specials → loyalty → coupons → trip → final, as the report recommends. */
+function Breakdown({ price, onAddCard }: { price: FinalPrice; onAddCard: () => void }) {
+  const row = (label: string, value: string, tone = '') => (
+    <div className="flex justify-between gap-2 py-1">
+      <span className="min-w-0 text-muted">{label}</span>
+      <span className={`num shrink-0 font-semibold ${tone}`}>{value}</span>
+    </div>
+  );
+  return (
+    <div className="mt-2 rounded-xl bg-paper px-3 py-2 text-sm">
+      {row('Shelf price', zar(price.shelf))}
+      {price.specials > 0 && row('Specials', `−${zar(price.specials)}`, 'text-save')}
+      {price.loyalty > 0 && row('Your loyalty-card prices', `−${zar(price.loyalty)}`, 'text-save')}
+      {price.coupons.map((c) => row(`Coupon: ${c.coupon.title}`, `−${zar(c.amount)}`, 'text-save'))}
+      {row(`Trip (${price.tripKm.toFixed(1)} km there and back)`, price.trip > 0 ? `+${zar(price.trip)}` : 'R 0.00', price.trip > 0 ? 'text-hot' : '')}
+      <div className="mt-1 flex justify-between gap-2 border-t border-line pt-1.5">
+        <span className="font-bold">Final price</span>
+        <span className="num text-base font-extrabold">{zar(price.final)}</span>
+      </div>
+      {price.loyaltyMissed.map((m) => (
+        <button key={m.programme} onClick={onAddCard} className="mt-1.5 flex w-full items-center gap-1.5 rounded-lg bg-card px-2 py-1.5 text-left text-xs font-semibold text-warn">
+          <CreditCard size={14} className="shrink-0" /> Add your {PROGRAMME_NAMES[m.programme]} card to save another {zar(m.amount)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function LineList({ lines, ctx }: { lines: PlacedLine[]; ctx: PriceContext }) {
   return (
     <ul className="mt-2 divide-y divide-line border-t border-line text-sm">
-      {plan.lines.map((l) => {
+      {lines.map((l) => {
         const p = PRODUCT_BY_ID[l.productId];
+        const paid = l.offer ? unitPaid(l.offer, ctx) * l.qty : null;
+        const cardOnly = l.offer?.loyalty && l.offer.special !== undefined && paid === l.offer.regular * l.qty;
         return (
           <li key={l.productId} className="flex items-start justify-between gap-2 py-2">
             <span className="min-w-0">
               <span className="block truncate">{l.qty > 1 ? `${l.qty} × ` : ''}{productTitle(p)} {packLabel(p.size)}</span>
               {l.substitute && l.offer && <span className="block text-xs text-warn">Swap: {productTitle(l.offer.product)} {packLabel(l.offer.product.size)}</span>}
-              {!l.offer && <span className="block text-xs text-hot">Not stocked here</span>}
-              {l.offer?.special && <span className="block text-xs text-save">On special</span>}
+              {!l.offer && <span className="block text-xs text-hot">Not available here</span>}
+              {l.offer?.special !== undefined && !cardOnly && <span className="block text-xs text-save">On special{l.offer.loyalty ? ' with your card' : ''}</span>}
+              {cardOnly && <span className="block text-xs text-warn">{l.offer!.loyalty} card price: not in your wallet</span>}
+              {l.offer && <span className="block text-[11px] text-muted">{l.offer.reported ? 'Real price' : 'Estimate'}</span>}
             </span>
-            <span className="num shrink-0 font-semibold">{l.offer ? zar(l.total) : '—'}</span>
+            <span className="num shrink-0 font-semibold">{paid !== null ? zar(paid) : '—'}</span>
           </li>
         );
       })}
@@ -32,20 +68,70 @@ function PlanLines({ plan }: { plan: StorePlan }) {
   );
 }
 
-export function Basket({ onEditStores }: { onEditStores: () => void }) {
+function TravelPicker() {
+  const { state, dispatch } = useApp();
+  const t = state.travel;
+  const modes: { v: TravelMode; label: string; Icon: typeof Car }[] = [
+    { v: 'taxi', label: 'Taxi', Icon: Bus },
+    { v: 'car', label: 'Car', Icon: Car },
+    { v: 'walk', label: 'Walk', Icon: Footprints },
+  ];
+  return (
+    <div className="rounded-2xl border border-line bg-card p-3">
+      <p className="text-sm font-semibold">How do you get to the shops?</p>
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        {modes.map(({ v, label, Icon }) => (
+          <button key={v} onClick={() => dispatch({ type: 'travel', travel: { mode: v } })} aria-pressed={t.mode === v} className={`flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-semibold ${t.mode === v ? 'border-ink bg-ink text-white' : 'border-line'}`}>
+            <Icon size={16} /> {label}
+          </button>
+        ))}
+      </div>
+      {t.mode === 'car' && (
+        <label htmlFor="per-km" className="mt-3 flex items-center justify-between gap-2 text-sm">
+          <span>Running cost per km (fuel and wear)</span>
+          <span className="flex items-center rounded-xl border border-line px-2"><span className="num font-bold">R</span>
+            <input id="per-km" inputMode="decimal" value={t.perKm} onChange={(e) => dispatch({ type: 'travel', travel: { perKm: Math.max(0, Number(e.target.value.replace(',', '.')) || 0) } })} className="num w-14 bg-transparent py-1.5 pl-1 font-bold outline-none" />
+          </span>
+        </label>
+      )}
+      {t.mode === 'taxi' && (
+        <label htmlFor="taxi-fare" className="mt-3 flex items-center justify-between gap-2 text-sm">
+          <span>Taxi fare per trip (stores under 1.5 km are walked)</span>
+          <span className="flex items-center rounded-xl border border-line px-2"><span className="num font-bold">R</span>
+            <input id="taxi-fare" inputMode="decimal" value={t.taxiFare} onChange={(e) => dispatch({ type: 'travel', travel: { taxiFare: Math.max(0, Number(e.target.value.replace(',', '.')) || 0) } })} className="num w-14 bg-transparent py-1.5 pl-1 font-bold outline-none" />
+          </span>
+        </label>
+      )}
+    </div>
+  );
+}
+
+export function Basket({ onEditStores, onAddCard }: { onEditStores: () => void; onAddCard: () => void }) {
   const { state, dispatch } = useApp();
   const toast = useToast();
-  const { branches, today, now, label } = useArea();
+  const { branches, today, now, label, home } = useArea();
   const [mode, setMode] = useState<'single' | 'split'>('single');
   const [open, setOpen] = useState<string | null>(null);
   const [adding, setAdding] = useState('');
   const [confirmClear, setConfirmClear] = useState(false);
+  const [slipOpen, setSlipOpen] = useState(false);
   const items = state.basket;
 
-  const singles = useMemo(() => rankSingleStores(items, branches, today), [items, branches, today]);
-  const split = useMemo(() => bestSplit(items, singles, state.travelCost), [items, singles, state.travelCost]);
-  const avg = areaAverage(singles);
-  const best = singles[0];
+  const ctx: PriceContext = useMemo(
+    () => ({
+      today,
+      home,
+      travel: state.travel,
+      cards: new Set(state.loyalty.map((c) => c.program)),
+      coupons: new Set(Object.values(state.clipped).filter((c) => !c.usedAt).map((c) => c.couponId)),
+    }),
+    [today, home.lat, home.lng, state.travel, state.loyalty, state.clipped], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const ranked = useMemo(() => rankByFinal(items, branches, ctx), [items, branches, ctx]);
+  const split = useMemo(() => bestSplitFinal(items, ranked, ctx), [items, ranked, ctx]);
+  const best = ranked[0];
+  const complete = ranked.filter((r) => r.price.missing === 0);
+  const avgTill = complete.length ? Math.round((complete.reduce((s, r) => s + r.price.till, 0) / complete.length) * 100) / 100 : null;
   const loggedToday = state.savings.some((e) => e.kind === 'basket' && todaySA(e.at) === today);
 
   const matches = useMemo(() => {
@@ -55,10 +141,11 @@ export function Basket({ onEditStores }: { onEditStores: () => void }) {
   }, [adding]);
 
   const logShop = () => {
-    const chosen = mode === 'split' && split?.worthIt ? split.total + state.travelCost : best?.total;
-    if (!chosen || !avg) return;
-    const saved = Math.max(0, Math.round((avg - chosen) * 100) / 100);
-    const where = mode === 'split' && split?.worthIt ? `${split.a.branch.name} + ${split.b.branch.name}` : best!.branch.name;
+    const useSplit = mode === 'split' && split?.worthIt;
+    const till = useSplit ? split!.price.till : best?.price.till;
+    if (till === undefined || avgTill === null) return;
+    const saved = Math.max(0, Math.round((avgTill - till) * 100) / 100);
+    const where = useSplit ? `${split!.a.name} + ${split!.b.name}` : best!.plan.branch.name;
     dispatch({ type: 'saving', entry: { amount: saved, label: `Basket at ${where} vs area average`, kind: 'basket' } });
     toast(saved > 0 ? `Nice! ${zar(saved)} added to your monthly savings` : 'Logged. No saving against the area average this time.', saved > 0 ? 'ok' : 'info');
   };
@@ -68,7 +155,7 @@ export function Basket({ onEditStores }: { onEditStores: () => void }) {
       <div className="flex flex-col gap-4">
         <h1 className="display text-2xl font-black">My Basket</h1>
         <AddBox value={adding} onChange={setAdding} matches={matches} onAdd={(id) => { dispatch({ type: 'basketAdd', productId: id }); setAdding(''); }} />
-        <Empty icon={<Store size={28} />} title="Your basket is empty">Add items here, or tap + on any deal. We'll find the cheapest store, or the best two-store split.</Empty>
+        <Empty icon={<Store size={28} />} title="Your basket is empty">Add items here, or tap + on any deal. We'll work out the real final price at each store, trip included.</Empty>
       </div>
     );
   }
@@ -78,10 +165,10 @@ export function Basket({ onEditStores }: { onEditStores: () => void }) {
       <div className="flex items-end justify-between gap-2">
         <div>
           <h1 className="display text-2xl font-black">My Basket</h1>
-          <p className="text-sm text-muted">{items.reduce((s, i) => s + i.qty, 0)} items · comparing {singles.length} stores near {label}</p>
+          <p className="text-sm text-muted">{items.reduce((s, i) => s + i.qty, 0)} items · {ranked.length} stores near {label}</p>
         </div>
         <a
-          href={whatsappUrl(basketText(items, label, best, split, state.travelCost))}
+          href={whatsappUrl(basketText(items, label, best, split, state.travel))}
           target="_blank"
           rel="noopener noreferrer"
           className="flex shrink-0 items-center gap-1.5 rounded-2xl bg-[#128C7E] px-3.5 py-2.5 text-sm font-bold text-white"
@@ -89,6 +176,25 @@ export function Basket({ onEditStores }: { onEditStores: () => void }) {
           <Share2 size={16} /> WhatsApp
         </a>
       </div>
+
+      {best && (
+        <section className="rounded-2xl bg-save p-4 text-white" aria-live="polite">
+          <p className="flex items-center gap-1.5 text-sm font-semibold opacity-90"><Trophy size={16} /> Best plan: one trip</p>
+          <p className="mt-1 text-lg leading-tight font-bold">{best.plan.branch.name}</p>
+          <p className="num mt-1 text-3xl font-extrabold">{zar(best.price.final)}</p>
+          <p className="text-sm opacity-95">
+            Final price with specials{best.price.loyalty ? ', your cards' : ''}{best.price.couponTotal ? ', coupons' : ''} and the trip ({travelLabel(state.travel)}).
+            {best.price.missing > 0 && ` ${best.price.missing} item${best.price.missing > 1 ? 's' : ''} not available.`}
+          </p>
+          <p className="mt-2 rounded-xl bg-white/15 px-3 py-2 text-sm">
+            {split?.worthIt
+              ? <>A second stop is worth it: <b>{split.a.name} + {split.b.name}</b> saves <b className="num">{zar(split.netSaving)}</b> more, after the longer trip.</>
+              : split
+                ? <>A second stop isn't worth it: it would save {split.netSaving > 0 ? `only ${zar(split.netSaving)}` : 'nothing'} after the extra travel.</>
+                : 'Add more items to compare a two-store split.'}
+          </p>
+        </section>
+      )}
 
       <section className="rounded-2xl border border-line bg-card">
         <ul className="divide-y divide-line">
@@ -129,61 +235,63 @@ export function Basket({ onEditStores }: { onEditStores: () => void }) {
         </div>
       </section>
 
+      <TravelPicker />
       <MyStoresBar onEdit={onEditStores} />
 
       <Segmented
         value={mode}
         onChange={setMode}
         options={[
-          { value: 'single', label: <span className="inline-flex items-center gap-1.5"><Store size={16} /> One-Stop Shop</span> },
+          { value: 'single', label: <span className="inline-flex items-center gap-1.5"><Store size={16} /> One store</span> },
           { value: 'split', label: <span className="inline-flex items-center gap-1.5"><Split size={16} /> Split & Save</span> },
         ]}
       />
 
-      <div className="rounded-2xl border border-line bg-card p-3">
-        <label htmlFor="travel" className="flex items-center justify-between text-sm font-semibold">
-          <span className="flex items-center gap-1.5"><Bus size={16} className="text-muted" /> Extra stop cost (taxi / fuel)</span>
-          <span className="num text-lg font-extrabold">{zar(state.travelCost)}</span>
-        </label>
-        <input id="travel" type="range" min={0} max={100} step={5} value={state.travelCost} onChange={(e) => dispatch({ type: 'travel', cost: Number(e.target.value) })} className="mt-2 w-full accent-[#047857]" />
-        <p className="text-xs text-muted">We only suggest a second store when the saving beats this cost.</p>
-      </div>
-
       {mode === 'single' ? (
         <section className="flex flex-col gap-2">
-          {singles.length === 0 && <Empty icon={<Store size={28} />} title="No stores in range">Widen your radius at the top.</Empty>}
-          {singles.map((s, idx) => {
-            const st = openStatus(s.branch.hours, now);
-            const diff = s.total - (best?.total ?? 0);
-            const isOpen = open === s.branch.id;
+          {ranked.length === 0 && <Empty icon={<Store size={28} />} title="No stores in range">Widen your radius at the top.</Empty>}
+          {ranked.map(({ plan, price }, idx) => {
+            const b = plan.branch;
+            const st = openStatus(b.hours, now);
+            const diff = price.final - (best?.price.final ?? 0);
+            const isOpen = open === b.id;
             return (
-              <article key={s.branch.id} className={`rounded-2xl border bg-card p-3 ${idx === 0 ? 'border-2 border-save' : 'border-line'}`}>
-                <button onClick={() => setOpen(isOpen ? null : s.branch.id)} className="flex w-full items-center gap-3 text-left" aria-expanded={isOpen}>
+              <article key={b.id} className={`rounded-2xl border bg-card p-3 ${idx === 0 ? 'border-2 border-save' : 'border-line'}`}>
+                <button onClick={() => setOpen(isOpen ? null : b.id)} className="flex w-full items-center gap-3 text-left" aria-expanded={isOpen}>
                   <span className={`num grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-extrabold ${idx === 0 ? 'bg-save text-white' : 'bg-paper text-muted'}`}>{idx + 1}</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <StorePill retailerId={s.branch.retailerId} size="xs" label={s.branch.retailerId === 'local' ? 'Local' : undefined} />
-                      <PreferredStar retailerId={s.branch.retailerId} />
-                      <span className="text-[11px] text-muted">{s.branch.distanceKm.toFixed(1)} km</span>
+                      <StorePill retailerId={b.retailerId} size="xs" label={b.retailerId === 'local' ? 'Local' : undefined} />
+                      <PreferredStar retailerId={b.retailerId} />
+                      <span className="text-[11px] text-muted">{b.distanceKm.toFixed(1)} km</span>
                       <span className={`text-[11px] font-semibold ${st.open ? (st.closingSoon ? 'text-warn' : 'text-save') : 'text-hot'}`}>{st.label}</span>
                     </div>
-                    <p className="mt-0.5 truncate text-sm font-semibold">{s.branch.name}</p>
-                    {(s.missing > 0 || s.substitutes > 0) && (
+                    <p className="mt-0.5 truncate text-sm font-semibold">{b.name}</p>
+                    <p className="text-[11px] text-muted">
+                      Till {zar(price.till)} · trip {price.trip > 0 ? zar(price.trip) : 'free'}
+                      {price.couponTotal > 0 && ` · coupons −${zar(price.couponTotal)}`}
+                    </p>
+                    {(plan.missing > 0 || plan.substitutes > 0) && (
                       <p className="flex items-center gap-1 text-xs text-warn">
                         <AlertTriangle size={12} />
-                        {s.missing > 0 && `${s.missing} not stocked`}
-                        {s.missing > 0 && s.substitutes > 0 && ' · '}
-                        {s.substitutes > 0 && `${s.substitutes} brand swap${s.substitutes > 1 ? 's' : ''}`}
+                        {plan.missing > 0 && `${plan.missing} not available`}
+                        {plan.missing > 0 && plan.substitutes > 0 && ' · '}
+                        {plan.substitutes > 0 && `${plan.substitutes} brand swap${plan.substitutes > 1 ? 's' : ''}`}
                       </p>
                     )}
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="num text-xl font-extrabold">{zar(s.total)}</p>
-                    {idx === 0 ? <p className="text-[11px] font-bold text-save uppercase">Cheapest</p> : s.missing > (best?.missing ?? 0) ? <p className="text-[11px] font-semibold text-muted">Incomplete</p> : <p className="num text-xs font-semibold text-hot">+{zar(diff)}</p>}
+                    <p className="num text-xl font-extrabold">{zar(price.final)}</p>
+                    {idx === 0 ? <p className="text-[11px] font-bold text-save uppercase">Cheapest</p> : price.missing > (best?.price.missing ?? 0) ? <p className="text-[11px] font-semibold text-muted">Incomplete</p> : <p className="num text-xs font-semibold text-hot">+{zar(diff)}</p>}
                   </div>
                   <ChevronDown size={18} className={`shrink-0 text-muted transition ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
-                {isOpen && <PlanLines plan={s} />}
+                {isOpen && (
+                  <>
+                    <Breakdown price={price} onAddCard={onAddCard} />
+                    <LineList lines={plan.lines.map((l) => ({ ...l, branch: b }))} ctx={ctx} />
+                  </>
+                )}
               </article>
             );
           })}
@@ -199,46 +307,30 @@ export function Basket({ onEditStores }: { onEditStores: () => void }) {
                   <>
                     <p className="text-sm font-semibold opacity-90">Split & Save: worth it</p>
                     <p className="num mt-0.5 text-3xl font-extrabold">Save {zar(split.netSaving)}</p>
-                    <p className="mt-1 text-sm opacity-95">
-                      After your {zar(state.travelCost)} extra stop. Two stores: {zar(split.total)} vs {zar(best!.total)} at {best!.branch.name}.
-                    </p>
+                    <p className="mt-1 text-sm opacity-95">Final {zar(split.price.final)} including a {split.price.tripKm.toFixed(1)} km trip to both stores, vs {zar(best!.price.final)} at {best!.plan.branch.name}.</p>
                   </>
                 ) : (
                   <>
                     <p className="font-bold">Stick to one store</p>
                     <p className="mt-1 text-sm text-muted">
-                      Splitting saves only {zar(Math.max(0, split.grossSaving))}, which is less than your {zar(state.travelCost)} travel. Shop everything at{' '}
-                      <span className="font-semibold text-ink">{best!.branch.name}</span> for {zar(best!.total)}.
+                      The best split ({split.a.name} + {split.b.name}) comes to {zar(split.price.final)} with the longer trip. That's {split.netSaving > 0 ? `only ${zar(split.netSaving)} less` : `${zar(-split.netSaving)} more`} than one trip to <span className="font-semibold text-ink">{best!.plan.branch.name}</span>. We suggest a second stop only when it saves over R10 and over 1% of your basket.
                     </p>
                   </>
                 )}
               </div>
-              {[split.a, split.b].map((s, k) => {
-                const lines = split.lines.filter((l) => l.branch === s.branch);
-                const sub = lines.reduce((t, l) => t + l.total, 0);
+              <Breakdown price={split.price} onAddCard={onAddCard} />
+              {[split.a, split.b].map((b, k) => {
+                const lines = split.lines.filter((l) => l.branch === b);
+                const sub = lines.reduce((t, l) => t + (l.offer ? unitPaid(l.offer, ctx) * l.qty : 0), 0);
                 return (
-                  <article key={s.branch.id} className="rounded-2xl border border-line bg-card p-3">
+                  <article key={b.id} className="rounded-2xl border border-line bg-card p-3">
                     <div className="flex items-center gap-2">
                       <span className="num grid h-7 w-7 place-items-center rounded-full bg-ink text-xs font-extrabold text-white">{k === 0 ? 'A' : 'B'}</span>
-                      <StorePill retailerId={s.branch.retailerId} size="xs" label={s.branch.retailerId === 'local' ? 'Local' : undefined} />
-                      <span className="min-w-0 flex-1 truncate text-sm font-semibold">{s.branch.name}</span>
+                      <StorePill retailerId={b.retailerId} size="xs" label={b.retailerId === 'local' ? 'Local' : undefined} />
+                      <span className="min-w-0 flex-1 truncate text-sm font-semibold">{b.name}</span>
                       <span className="num shrink-0 font-extrabold">{zar(sub)}</span>
                     </div>
-                    <ul className="mt-2 divide-y divide-line border-t border-line text-sm">
-                      {lines.map((l) => {
-                        const p = PRODUCT_BY_ID[l.productId];
-                        const other = (k === 0 ? split.b : split.a).lines.find((x) => x.productId === l.productId);
-                        return (
-                          <li key={l.productId} className="flex justify-between gap-2 py-1.5">
-                            <span className="min-w-0 truncate">{l.qty > 1 ? `${l.qty} × ` : ''}{productTitle(p)} {packLabel(p.size)}</span>
-                            <span className="shrink-0 text-right">
-                              <span className="num block font-semibold">{zar(l.total)}</span>
-                              {other?.offer && other.total > l.total && <span className="num block text-[11px] text-save">saves {zar(other.total - l.total)}</span>}
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                    <LineList lines={lines} ctx={ctx} />
                   </article>
                 );
               })}
@@ -247,20 +339,25 @@ export function Basket({ onEditStores }: { onEditStores: () => void }) {
         </section>
       )}
 
-      {avg && best && (
-        <div className="rounded-2xl border border-line bg-card p-3">
+      <div className="rounded-2xl border border-line bg-card p-3">
+        {avgTill !== null && (
           <p className="text-sm text-muted">
-            Area average for this basket: <span className="num font-bold text-ink">{zar(avg)}</span>
+            Area average at the till for this basket: <span className="num font-bold text-ink">{zar(avgTill)}</span>
           </p>
-          <button
-            onClick={logShop}
-            disabled={loggedToday}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 font-bold text-white disabled:bg-line disabled:text-muted"
-          >
-            {loggedToday ? <><Check size={18} /> Today's shop is logged</> : <><PartyPopper size={18} /> I shopped this: add my saving</>}
-          </button>
-        </div>
-      )}
+        )}
+        <button onClick={() => setSlipOpen(true)} className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 font-bold text-white">
+          <Receipt size={18} /> Check my till slip
+        </button>
+        <button
+          onClick={logShop}
+          disabled={loggedToday || avgTill === null}
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-line py-3 text-sm font-semibold disabled:text-muted"
+        >
+          {loggedToday ? <><Check size={16} /> Today's shop is logged</> : <><PartyPopper size={16} /> No slip? Log the planned saving</>}
+        </button>
+      </div>
+
+      <SlipSheet open={slipOpen} onClose={() => setSlipOpen(false)} areaAverage={avgTill} />
     </div>
   );
 }

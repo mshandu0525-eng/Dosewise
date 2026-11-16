@@ -1,4 +1,5 @@
 import { hash } from '../lib/random';
+import type { Category } from './products';
 import { dayToDate } from '../lib/date';
 
 export type CouponKind = 'manufacturer' | 'store' | 'combo';
@@ -18,7 +19,15 @@ export interface Coupon {
   /** Retailers where it can be used; empty = any participating store. */
   retailerIds: string[];
   productIds?: string[];
+  /** Units of the coupon product that must be bought (default 1). */
+  minQty?: number;
   minSpend?: number;
+  /** minSpend counts only this category (e.g. R500 of meat). */
+  spendCategory?: Category;
+  /** Percentage off one category, capped at `value`. */
+  pctOf?: { category: Category; pct: number };
+  /** Product groups and quantities the basket must contain. */
+  needs?: { group: string; qty: number }[];
   combo?: { items: ComboItem[]; price: number; regular: number };
   /** Bulk combos that suit stokvels and group buys. */
   stokvel?: boolean;
@@ -34,18 +43,18 @@ export const COUPONS: Coupon[] = [
   { id: 'c-pampers', kind: 'manufacturer', title: 'R30 off Pampers Baby-Dry', detail: 'Any Pampers Baby-Dry jumbo pack', value: 30, retailerIds: [], productIds: ['pampers-4'], ends: 'month-end', terms: 'Jumbo packs only. One per transaction.' },
   { id: 'c-joko', kind: 'manufacturer', title: 'R10 off Joko 100s', detail: 'Joko Tagless Tea Bags 100s', value: 10, retailerIds: [], productIds: ['joko-100'], ends: 5, terms: 'One per transaction.' },
   { id: 'c-omo', kind: 'manufacturer', title: 'R25 off OMO Auto 2kg', detail: 'OMO Auto Washing Powder 2kg', value: 25, retailerIds: [], productIds: ['omo-2'], ends: 1, terms: 'One per transaction.' },
-  { id: 'c-luckystar', kind: 'manufacturer', title: 'R8 off 2 x Lucky Star 400g', detail: 'Buy any 2 Lucky Star 400g cans', value: 8, retailerIds: [], productIds: ['luckystar-400'], ends: 12, terms: 'Buy 2. One per transaction.' },
+  { id: 'c-luckystar', kind: 'manufacturer', title: 'R8 off 2 x Lucky Star 400g', detail: 'Buy any 2 Lucky Star 400g cans', value: 8, retailerIds: [], productIds: ['luckystar-400'], minQty: 2, ends: 12, terms: 'Buy 2. One per transaction.' },
   { id: 'c-tastic', kind: 'manufacturer', title: 'R15 off Tastic 5kg', detail: 'Tastic Long Grain Parboiled Rice 5kg', value: 15, retailerIds: [], productIds: ['tastic-5'], ends: 0, terms: 'One per transaction.' },
   // Store vouchers
   { id: 's-shoprite', kind: 'store', title: 'R30 off a R400 shop', detail: 'Shoprite, with your Xtra Savings card', value: 30, retailerIds: ['shoprite'], minSpend: 400, ends: 6, terms: 'Swipe Xtra Savings first. Excludes airtime and tobacco.' },
   { id: 's-checkers', kind: 'store', title: 'R50 off a R600 shop', detail: 'Checkers & Checkers Hyper', value: 50, retailerIds: ['checkers'], minSpend: 600, ends: 'month-end', terms: 'Once per customer. Xtra Savings members.' },
-  { id: 's-pnp', kind: 'store', title: '10% off fresh produce (max R40)', detail: 'Pick n Pay, with Smart Shopper', value: 40, retailerIds: ['pnp'], ends: 3, terms: 'Swipe Smart Shopper. Max discount R40.' },
+  { id: 's-pnp', kind: 'store', title: '10% off fresh produce (max R40)', detail: 'Pick n Pay, with Smart Shopper', value: 40, retailerIds: ['pnp'], pctOf: { category: 'produce', pct: 0.1 }, ends: 3, terms: 'Swipe Smart Shopper. Max discount R40.' },
   { id: 's-boxer', kind: 'store', title: 'R25 off a R350 shop', detail: 'Boxer, all stores', value: 25, retailerIds: ['boxer'], minSpend: 350, ends: 1, terms: 'One per till slip.' },
   { id: 's-usave', kind: 'store', title: 'R15 off a R200 shop', detail: 'Usave', value: 15, retailerIds: ['usave'], minSpend: 200, ends: 8, terms: 'One per till slip.' },
   { id: 's-spar', kind: 'store', title: 'R20 off a R300 shop', detail: 'SPAR & SUPERSPAR, SPAR Rewards members', value: 20, retailerIds: ['spar'], minSpend: 300, ends: 4, terms: 'Swipe SPAR Rewards.' },
   { id: 's-kitkat', kind: 'store', title: 'R100 off a R2 000 bulk shop', detail: 'Kit Kat Cash & Carry', value: 100, retailerIds: ['kitkat'], minSpend: 2000, ends: 'month-end', terms: 'Bulk lines only.' },
-  { id: 's-cambridge', kind: 'store', title: 'R20 off bread & milk combo', detail: 'Cambridge Food: 2 loaves + 2L milk', value: 20, retailerIds: ['cambridge'], ends: 2, terms: 'Any 2 loaves and any 2L fresh milk.' },
-  { id: 's-roots', kind: 'store', title: 'R40 off R500 of meat', detail: 'Roots Butchery', value: 40, retailerIds: ['roots'], minSpend: 500, ends: 0, terms: 'Butchery counter only.' },
+  { id: 's-cambridge', kind: 'store', title: 'R20 off bread & milk combo', detail: 'Cambridge Food: 2 loaves + 2L milk', value: 20, retailerIds: ['cambridge'], needs: [{ group: 'bread', qty: 2 }, { group: 'milk', qty: 1 }], ends: 2, terms: 'Any 2 loaves and any 2L fresh milk.' },
+  { id: 's-roots', kind: 'store', title: 'R40 off R500 of meat', detail: 'Roots Butchery', value: 40, retailerIds: ['roots'], minSpend: 500, spendCategory: 'meat', ends: 0, terms: 'Butchery counter only.' },
   // Combo & stokvel bulk deals
   {
     id: 'k-stokvel-staples', kind: 'combo', stokvel: true, title: 'Stokvel Staples Hamper', detail: '4 x 10kg rice, 4 x 5L oil, 4 x 10kg maize meal', value: 0, retailerIds: ['makro'], ends: 'month-end', terms: 'Collect in store. Bulk counter.',

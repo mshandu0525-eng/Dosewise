@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Info, X } from 'lucide-react';
 import { BottomNav, Header, type Tab } from './components/Chrome';
 import { LocationSheet } from './components/LocationSheet';
@@ -9,16 +9,18 @@ import { UpdatePriceSheet, type PriceTarget } from './components/UpdatePriceShee
 import type { Offer } from './data/prices';
 import { ToastProvider } from './components/ui';
 import { Deals } from './screens/Deals';
-import { Compare } from './screens/Compare';
-import { Coupons } from './screens/Coupons';
 import { Basket } from './screens/Basket';
-import { Scan } from './screens/Scan';
 import { useApp } from './lib/state';
 import { useArea } from './lib/useArea';
 import { dueAlerts, systemNotify, type FiredAlert } from './lib/alerts';
 import { priceOf } from './data/prices';
 import { productTitle } from './data/products';
 import { zar } from './lib/format';
+
+// Screens other than Deals and My Basket load on first open, so the first visit uses less data.
+const Compare = lazy(() => import('./screens/Compare').then((m) => ({ default: m.Compare })));
+const Coupons = lazy(() => import('./screens/Coupons').then((m) => ({ default: m.Coupons })));
+const Scan = lazy(() => import('./screens/Scan').then((m) => ({ default: m.Scan })));
 
 const TAB_IDS: Tab[] = ['deals', 'compare', 'coupons', 'basket', 'scan'];
 const tabFromHash = (): Tab => {
@@ -36,6 +38,7 @@ function Shell() {
   const [storesOpen, setStoresOpen] = useState(false);
   const editStores = useCallback(() => setStoresOpen(true), []);
   const [priceTarget, setPriceTarget] = useState<PriceTarget | null>(null);
+  const [couponsView, setCouponsView] = useState<'cards' | undefined>(undefined);
   const updatePrice = useCallback((o: Offer) => setPriceTarget({ productId: o.product.id, branchId: o.branch.id }), []);
   const [fired, setFired] = useState<FiredAlert[]>([]);
 
@@ -80,11 +83,13 @@ function Shell() {
             </button>
           </div>
         )}
+        <Suspense fallback={<p className="py-10 text-center text-sm text-muted">Loading…</p>}>
         {tab === 'deals' && <Deals onAlert={setAlertFor} fired={fired} onDismissFired={() => setFired([])} onEditStores={editStores} onUpdatePrice={updatePrice} />}
         {tab === 'compare' && <Compare onAlert={setAlertFor} onEditStores={editStores} onUpdatePrice={updatePrice} />}
-        {tab === 'coupons' && <Coupons />}
-        {tab === 'basket' && <Basket onEditStores={editStores} />}
+        {tab === 'coupons' && <Coupons initialView={couponsView} onViewShown={() => setCouponsView(undefined)} />}
+        {tab === 'basket' && <Basket onEditStores={editStores} onAddCard={() => { setCouponsView('cards'); go('coupons'); }} />}
         {tab === 'scan' && <Scan onSaveRealPrice={setPriceTarget} />}
+        </Suspense>
       </main>
       <BottomNav tab={tab} onTab={go} />
       <LocationSheet open={locOpen} onClose={() => setLocOpen(false)} />

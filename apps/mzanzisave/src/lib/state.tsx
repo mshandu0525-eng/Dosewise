@@ -4,6 +4,8 @@ import type { BasketItem } from './basket';
 import type { PackSize } from './format';
 import { monthKey, todaySA } from './date';
 import { setPriceReports, type PriceReport } from './reports';
+import { setStockFlags, type StockFlag } from './stock';
+import type { TravelSettings } from './final';
 
 export interface PriceAlert {
   productId: string;
@@ -57,7 +59,15 @@ export interface AppState {
   area: AreaFilter;
   dataSaver: boolean;
   basket: BasketItem[];
-  travelCost: number;
+  /** @deprecated V1 flat taxi buffer; migrated into travel.taxiFare. */
+  travelCost?: number;
+  travel: TravelSettings;
+  /** Out-of-stock reports from this phone. */
+  stockFlags: StockFlag[];
+  /** Checker points earned for price, stock and slip reports. */
+  points: number;
+  /** How many prices this phone has checked (reports + stock flags). */
+  checks: number;
   alerts: Record<string, PriceAlert>;
   clipped: Record<string, ClippedCoupon>;
   loyalty: LoyaltyCard[];
@@ -91,7 +101,10 @@ function initial(): AppState {
       { productId: 'albany-white', qty: 2 },
       { productId: 'potatoes-7', qty: 1 },
     ],
-    travelCost: 20,
+    travel: { mode: 'taxi', perKm: 4.25, taxiFare: 20 },
+    stockFlags: [],
+    points: 0,
+    checks: 0,
     alerts: {},
     clipped: {},
     loyalty: [],
@@ -109,7 +122,12 @@ function load(): AppState {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<AppState>;
-      if (parsed.version === 1) return { ...initial(), ...parsed, area: { ...initial().area, ...parsed.area } };
+      if (parsed.version === 1) {
+        const base = initial();
+        // V1 → V2: the flat taxi buffer becomes the taxi fare.
+        const travel = parsed.travel ?? { ...base.travel, taxiFare: parsed.travelCost ?? base.travel.taxiFare };
+        return { ...base, ...parsed, travel, area: { ...base.area, ...parsed.area } };
+      }
     }
   } catch {
     /* storage blocked or corrupt: start fresh */
@@ -123,7 +141,10 @@ type Action =
   | { type: 'basketAdd'; productId: string; qty?: number }
   | { type: 'basketQty'; productId: string; qty: number }
   | { type: 'basketClear' }
-  | { type: 'travel'; cost: number }
+  | { type: 'travel'; travel: Partial<TravelSettings> }
+  | { type: 'flagStock'; flag: StockFlag }
+  | { type: 'unflagStock'; scope: string; productId: string }
+  | { type: 'points'; points: number }
   | { type: 'alertSet'; alert: PriceAlert }
   | { type: 'alertRemove'; productId: string }
   | { type: 'alertFired'; productId: string; day: number; price: number; store: string }
@@ -166,7 +187,18 @@ function reducer(s: AppState, a: Action): AppState {
     case 'basketClear':
       return { ...s, basket: [] };
     case 'travel':
-      return { ...s, travelCost: a.cost };
+      return { ...s, travel: { ...s.travel, ...a.travel } };
+    case 'flagStock':
+      return {
+        ...s,
+        stockFlags: [a.flag, ...s.stockFlags.filter((f) => !(f.scope === a.flag.scope && f.productId === a.flag.productId))].slice(0, 300),
+        points: s.points + 5,
+        checks: s.checks + 1,
+      };
+    case 'unflagStock':
+      return { ...s, stockFlags: s.stockFlags.filter((f) => !(f.scope === a.scope && f.productId === a.productId)) };
+    case 'points':
+      return { ...s, points: s.points + a.points };
     case 'alertSet':
       return { ...s, alerts: { ...s.alerts, [a.alert.productId]: a.alert } };
     case 'alertRemove': {
@@ -204,6 +236,8 @@ function reducer(s: AppState, a: Action): AppState {
     case 'reportPrice':
       return {
         ...s,
+        points: s.points + 10,
+        checks: s.checks + 1,
         // One report per product per store from this phone: the new one replaces the old.
         priceReports: [a.report, ...s.priceReports.filter((r) => !(r.scope === a.report.scope && r.productId === a.report.productId))].slice(0, 500),
       };
@@ -236,6 +270,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [state, rawDispatch] = useReducer(reducer, undefined, load);
   // Keep the price engine's real-price overlay in step with saved reports, before children render.
   setPriceReports(state.priceReports);
+  setStockFlags(state.stockFlags);
   const dispatch = useCallback((a: Action) => rawDispatch(a), []);
   useEffect(() => {
     try {

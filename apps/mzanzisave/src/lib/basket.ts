@@ -52,7 +52,8 @@ export function distinctStores(branches: NearbyBranch[]): NearbyBranch[] {
 function lineFor(item: BasketItem, branch: NearbyBranch, today: number): Line {
   const p = PRODUCT_BY_ID[item.productId];
   if (!p) return { ...item, offer: null, substitute: false, total: 0 };
-  const exact = getOffer(p, branch, today);
+  const found = getOffer(p, branch, today);
+  const exact = found && !found.outOfStock ? found : null;
   if (exact) return { ...item, offer: exact, substitute: false, total: priceOf(exact) * item.qty };
   // Same group, same unit, within 10% of the pack size: a fair like-for-like swap.
   let best: Offer | null = null;
@@ -60,7 +61,7 @@ function lineFor(item: BasketItem, branch: NearbyBranch, today: number): Line {
     if (alt.id === p.id || alt.size.unit !== p.size.unit) continue;
     if (Math.abs(alt.size.qty - p.size.qty) / p.size.qty > 0.1) continue;
     const o = getOffer(alt, branch, today);
-    if (o && (!best || priceOf(o) < priceOf(best))) best = o;
+    if (o && !o.outOfStock && (!best || priceOf(o) < priceOf(best))) best = o;
   }
   if (best) return { ...item, offer: best, substitute: true, total: priceOf(best) * item.qty };
   return { ...item, offer: null, substitute: false, total: 0 };
