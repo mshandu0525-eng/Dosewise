@@ -6,7 +6,7 @@ import { Linking, Platform } from "react-native";
 export const LEGAL_VERSION = "2026-11-v1";
 
 export const PRIVACY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? "https://dosewise.example/privacy";
-export const SUPPORT_EMAIL = process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? "support@dosewise.example";
+export const SUPPORT_EMAIL = process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? "infor@mzanzisave.co.za";
 
 export const appVersion = () => `${Application.nativeApplicationVersion ?? "dev"} (${Application.nativeBuildVersion ?? "0"})`;
 

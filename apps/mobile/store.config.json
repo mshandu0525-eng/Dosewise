@@ -72,7 +72,7 @@
     "review": {
       "firstName": "SET_ME",
       "lastName": "SET_ME",
-      "email": "review-contact@dosewise.example",
+      "email": "infor@mzanzisave.co.za",
       "phone": "+27000000000",
       "demoRequired": false,
       "notes": "DoseWise works fully without an account: add a medicine (or tap 'Scan the box'), then use Taken/Snooze/Skip on the reminder. Photo checks run on the device. Only the optional 'Family updates' feature (Settings > Family updates) needs sign-in, by SMS code to a phone number; a demo video of that flow is attached. Time Sensitive notifications are used only for the 10- and 30-minute follow-ups when a dose is not logged. The app does not provide dosing advice: the photo check only compares the strength printed on the box with the strength the user entered."
